@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(npx shadcn@latest add alert-dialog --yes)",
+      "Bash(npm list:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm install:*)"
+    ],
+    "additionalDirectories": [
+      "/media/Files/Repos/notas-aren/src/app/(dashboard)/clientes",
+      "/media/Files/Repos/notas-aren/src/app/api/vendedores/[id]",
+      "/media/Files/Repos/notas-aren/src/app/(dashboard)/vendedores"
+    ]
+  }
+}

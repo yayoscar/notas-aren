@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Notas de Aren — Warm Sand & Desert Palette */
+    --background: 35 33% 97%;
+    --foreground: 25 35% 12%;
+    --card: 36 30% 99%;
+    --card-foreground: 25 35% 12%;
+    --popover: 36 30% 99%;
+    --popover-foreground: 25 35% 12%;
+    --primary: 26 52% 34%;
+    --primary-foreground: 36 45% 96%;
+    --secondary: 32 28% 91%;
+    --secondary-foreground: 25 35% 18%;
+    --muted: 30 18% 93%;
+    --muted-foreground: 25 15% 46%;
+    --accent: 30 55% 45%;
+    --accent-foreground: 36 45% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 22% 87%;
+    --input: 30 20% 84%;
+    --ring: 26 52% 34%;
+    --radius: 0.5rem;
+
+    /* Brand-specific tokens */
+    --brand-sand: 30 55% 72%;
+    --brand-gold: 36 65% 50%;
+    --brand-espresso: 25 40% 18%;
+    --brand-cream: 38 50% 96%;
+    --brand-terracotta: 18 55% 42%;
+  }
+
+  .dark {
+    --background: 25 25% 7%;
+    --foreground: 32 25% 90%;
+    --card: 25 22% 10%;
+    --card-foreground: 32 25% 90%;
+    --popover: 25 22% 10%;
+    --popover-foreground: 32 25% 90%;
+    --primary: 30 50% 55%;
+    --primary-foreground: 25 30% 8%;
+    --secondary: 25 18% 15%;
+    --secondary-foreground: 32 25% 90%;
+    --muted: 25 15% 15%;
+    --muted-foreground: 30 15% 55%;
+    --accent: 32 50% 42%;
+    --accent-foreground: 36 45% 96%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 25 15% 18%;
+    --input: 25 15% 18%;
+    --ring: 30 50% 55%;
+
+    --brand-sand: 30 40% 50%;
+    --brand-gold: 36 55% 42%;
+    --brand-espresso: 25 20% 75%;
+    --brand-cream: 30 15% 15%;
+    --brand-terracotta: 18 45% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cormorant Garamond', serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Elegant card hover effect */
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+  .card-hover:hover {
+    @apply shadow-lg -translate-y-0.5;
+    box-shadow: 0 8px 30px -8px hsl(var(--brand-sand) / 0.25);
+  }
+
+  /* Subtle grain overlay for luxury feel */
+  .grain-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  /* Brand gold accent line */
+  .accent-line {
+    @apply relative;
+  }
+  .accent-line::after {
+    content: '';
+    @apply absolute bottom-0 left-0 h-[2px] w-8;
+    background: linear-gradient(90deg, hsl(var(--brand-gold)), transparent);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cormorant Garamond', serif;
+  }
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+  .text-brand-sand {
+    color: hsl(var(--brand-sand));
+  }
+  .text-brand-gold {
+    color: hsl(var(--brand-gold));
+  }
+  .bg-brand-sand {
+    background-color: hsl(var(--brand-sand));
+  }
+  .bg-brand-gold {
+    background-color: hsl(var(--brand-gold));
+  }
+  .bg-brand-cream {
+    background-color: hsl(var(--brand-cream));
+  }
+  .bg-brand-espresso {
+    background-color: hsl(var(--brand-espresso));
+  }
+}
