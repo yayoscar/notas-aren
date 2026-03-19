@@ -24,6 +24,7 @@ import {
   Pie,
   Cell,
   Legend,
+  type PieLabelRenderProps,
 } from "recharts"
 import { DollarSign, TrendingUp, TrendingDown, CreditCard } from "lucide-react"
 
@@ -167,7 +168,7 @@ export default function ReportesPage() {
                 />
                 <YAxis fontSize={12} />
                 <Tooltip
-                  formatter={(v: number) => [`$${v.toFixed(2)}`, "Total"]}
+                  formatter={(v) => [`$${Number(v).toFixed(2)}`, "Total"]}
                 />
                 <Bar dataKey="total" fill="hsl(26, 52%, 34%)" radius={4} />
               </BarChart>
@@ -190,7 +191,7 @@ export default function ReportesPage() {
                 <XAxis type="number" fontSize={12} />
                 <YAxis dataKey="vendedor" type="category" fontSize={12} width={100} />
                 <Tooltip
-                  formatter={(v: number) => [`$${v.toFixed(2)}`, "Total"]}
+                  formatter={(v) => [`$${Number(v).toFixed(2)}`, "Total"]}
                 />
                 <Bar dataKey="total" fill="hsl(30, 55%, 72%)" radius={4} />
               </BarChart>
@@ -213,14 +214,14 @@ export default function ReportesPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ tipo, count }) => `${tipo} (${count})`}
+                  label={({ name, value }: PieLabelRenderProps) => `${name ?? ""} (${value ?? 0})`}
                 >
                   {(ventasTipo.data ?? []).map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v: number) => [`$${v.toFixed(2)}`, "Total"]}
+                  formatter={(v) => [`$${Number(v).toFixed(2)}`, "Total"]}
                 />
                 <Legend />
               </PieChart>
@@ -277,7 +278,7 @@ export default function ReportesPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ estado, count }) => `${estado}: ${count}`}
+                  label={({ name, value }: PieLabelRenderProps) => `${name ?? ""}: ${value ?? 0}`}
                 >
                   {(creditosResumen.data ?? []).map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -313,7 +314,7 @@ export default function ReportesPage() {
                 <XAxis dataKey="tipo" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip
-                  formatter={(v: number) => [`$${v.toFixed(2)}`, "Monto"]}
+                  formatter={(v) => [`$${Number(v).toFixed(2)}`, "Monto"]}
                 />
                 <Bar dataKey="monto" radius={4}>
                   <Cell fill="hsl(26, 52%, 34%)" />

@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { gastoSchema, type GastoFormValues } from "@/lib/validations/gasto.schema"
+import { gastoBaseSchema, type GastoFormValues } from "@/lib/validations/gasto.schema"
 import { useCategoriasGasto } from "@/hooks/useCategoriasGasto"
 import { useCuentasBancarias } from "@/hooks/useCuentasBancarias"
 import { Button } from "@/components/ui/button"
@@ -34,8 +34,8 @@ export function GastoForm({ onSubmit, isPending }: Props) {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<GastoFormValues>({
-    resolver: zodResolver(gastoSchema),
+  } = useForm({
+    resolver: zodResolver(gastoBaseSchema),
     defaultValues: {
       concepto: "",
       monto: 0,

@@ -87,7 +87,7 @@ export default function NuevaEntradaPage() {
   function addProducto(producto: {
     id: string
     nombre: string
-    sku: string
+    sku: string | null
     precio_compra: number
     precio_venta_contado: number
     precio_venta_credito: number
@@ -97,7 +97,7 @@ export default function NuevaEntradaPage() {
       ...detalles,
       {
         producto_id: producto.id,
-        producto_nombre: `${producto.sku} — ${producto.nombre}`,
+        producto_nombre: `${producto.sku ?? ""} — ${producto.nombre}`,
         cantidad: 1,
         precio_unitario: Number(producto.precio_compra),
         precio_venta_contado: Number(producto.precio_venta_contado),

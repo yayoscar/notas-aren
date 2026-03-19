@@ -26,7 +26,7 @@ export default function InventarioPage() {
         (p) =>
           p.nombre.toLowerCase().includes(s) ||
           p.marca.toLowerCase().includes(s) ||
-          p.sku.toLowerCase().includes(s)
+          p.sku?.toLowerCase().includes(s)
       )
     }
 
