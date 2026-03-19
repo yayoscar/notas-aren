@@ -8,7 +8,7 @@ import { entradaSchema, type EntradaFormValues } from "@/lib/validations/entrada
 import { useEntradas } from "@/hooks/useEntradas"
 import { useProductos } from "@/hooks/useProductos"
 import { useProveedores } from "@/hooks/useProveedores"
-import { usePrecioActivo, useCrearPrecio } from "@/hooks/usePreciosHistorico"
+import { useCrearPrecio } from "@/hooks/usePreciosHistorico"
 import { PrecioChangeDialog } from "@/components/inventario/PrecioChangeDialog"
 import type { Producto } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
