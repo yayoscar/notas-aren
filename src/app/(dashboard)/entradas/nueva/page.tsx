@@ -79,7 +79,7 @@ export default function NuevaEntradaPage() {
       .filter(
         (p) =>
           p.activo &&
-          (p.nombre.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s))
+          (p.nombre.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s))
       )
       .slice(0, 10)
   }, [productos.query.data, searchProducto])
