@@ -39,9 +39,9 @@ export default function InventarioPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Inventario</h1>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/inventario/nuevo">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo producto
@@ -78,13 +78,13 @@ export default function InventarioPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
+                  <TableHead className="hidden sm:table-cell">SKU</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Marca</TableHead>
-                  <TableHead>Género</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead className="hidden sm:table-cell">Marca</TableHead>
+                  <TableHead className="hidden lg:table-cell">Género</TableHead>
+                  <TableHead className="hidden lg:table-cell">Tipo</TableHead>
                   <TableHead className="text-right">P. Contado</TableHead>
-                  <TableHead className="text-right">P. Crédito</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">P. Crédito</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
                 </TableRow>
               </TableHeader>
@@ -98,7 +98,7 @@ export default function InventarioPage() {
                 )}
                 {filtered.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Link href={`/inventario/${p.id}`} className="font-mono text-sm hover:underline">
                         {p.sku}
                       </Link>
@@ -108,11 +108,11 @@ export default function InventarioPage() {
                         {p.nombre}
                       </Link>
                     </TableCell>
-                    <TableCell>{p.marca}</TableCell>
-                    <TableCell>{p.cat_genero?.nombre ?? "—"}</TableCell>
-                    <TableCell>{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{p.marca}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{p.cat_genero?.nombre ?? "—"}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
                     <TableCell className="text-right">${Number(p.precio_venta_contado).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">${Number(p.precio_venta_credito).toFixed(2)}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-right">${Number(p.precio_venta_credito).toFixed(2)}</TableCell>
                     <TableCell className="text-center">
                       <StockBadge stockActual={p.stock_actual} stockMinimo={p.stock_minimo} />
                     </TableCell>

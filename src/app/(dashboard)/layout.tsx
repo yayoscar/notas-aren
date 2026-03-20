@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
@@ -12,8 +12,14 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { vendedor, isAdmin, isLoading } = useVendedorActual()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     if (isLoading || !vendedor) return
@@ -37,9 +43,12 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
       <div className="flex flex-1 flex-col sm:pl-64">
-        <Header />
+        <Header onMenuToggle={() => setIsMobileMenuOpen((prev) => !prev)} />
         <main className="flex-1 p-4 sm:p-8">{children}</main>
       </div>
     </div>

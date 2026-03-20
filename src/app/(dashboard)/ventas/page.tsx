@@ -122,10 +122,10 @@ function VentasListado({ onBack }: { onBack: () => void }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Folio</TableHead>
+                  <TableHead className="hidden sm:table-cell">Folio</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Fecha</TableHead>
+                  <TableHead className="hidden sm:table-cell">Tipo</TableHead>
+                  <TableHead className="hidden sm:table-cell">Fecha</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
@@ -143,7 +143,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                 )}
                 {filtered.map((v) => (
                   <TableRow key={v.id}>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Link
                         href={`/ventas/${v.id}`}
                         className="font-medium hover:underline"
@@ -151,8 +151,15 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                         {v.folio}
                       </Link>
                     </TableCell>
-                    <TableCell>{v.clientes?.nombre ?? "—"}</TableCell>
                     <TableCell>
+                      <Link
+                        href={`/ventas/${v.id}`}
+                        className="font-medium hover:underline sm:no-underline sm:pointer-events-none"
+                      >
+                        {v.clientes?.nombre ?? "—"}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge
                         variant={
                           v.tipo_venta === "contado" ? "default" : "secondary"
@@ -161,7 +168,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                         {v.tipo_venta === "contado" ? "Contado" : "Crédito"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {new Date(v.fecha).toLocaleDateString("es-MX")}
                     </TableCell>
                     <TableCell className="text-right font-medium">

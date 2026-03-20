@@ -29,9 +29,9 @@ export default function VendedoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Vendedores</h1>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/vendedores/nuevo">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo vendedor
@@ -63,10 +63,10 @@ export default function VendedoresPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Usuario</TableHead>
+                  <TableHead className="hidden sm:table-cell">Usuario</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead className="hidden sm:table-cell">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -84,14 +84,14 @@ export default function VendedoresPage() {
                         {v.nombre}
                       </Link>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{v.usuario}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-sm">{v.usuario}</TableCell>
                     <TableCell>{v.telefono}</TableCell>
                     <TableCell>
                       <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
                         {v.rol === "admin" ? "Administrador" : "Vendedor"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant={v.activo ? "default" : "secondary"}>
                         {v.activo ? "Activo" : "Inactivo"}
                       </Badge>

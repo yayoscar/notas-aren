@@ -13,9 +13,9 @@ export default function EntradasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Entradas de inventario</h1>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/entradas/nueva">
             <Plus className="mr-2 h-4 w-4" />
             Nueva entrada
@@ -35,8 +35,8 @@ export default function EntradasPage() {
                 <TableRow>
                   <TableHead>Folio</TableHead>
                   <TableHead>Proveedor</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>N° Factura</TableHead>
+                  <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                  <TableHead className="hidden sm:table-cell">N° Factura</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -52,8 +52,8 @@ export default function EntradasPage() {
                   <TableRow key={e.id}>
                     <TableCell className="font-mono font-medium">{e.folio}</TableCell>
                     <TableCell>{e.proveedores?.nombre ?? "—"}</TableCell>
-                    <TableCell>{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
-                    <TableCell>{e.numero_factura ?? "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{e.numero_factura ?? "—"}</TableCell>
                     <TableCell className="text-right font-mono">${Number(e.total).toFixed(2)}</TableCell>
                   </TableRow>
                 ))}

@@ -174,7 +174,7 @@ export function GastoForm({ onSubmit, isPending }: Props) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="outline"

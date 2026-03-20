@@ -212,13 +212,13 @@ export default function SeguimientoPagosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Folio</TableHead>
+                <TableHead className="hidden sm:table-cell">Folio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Abonado</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">Total</TableHead>
+                <TableHead className="hidden lg:table-cell text-right">Abonado</TableHead>
                 <TableHead className="text-right">Restante</TableHead>
-                <TableHead>Plazo</TableHead>
-                <TableHead>Periodicidad</TableHead>
+                <TableHead className="hidden lg:table-cell">Plazo</TableHead>
+                <TableHead className="hidden sm:table-cell">Periodicidad</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,7 +234,7 @@ export default function SeguimientoPagosPage() {
               )}
               {todos.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Link
                       href={`/ventas/${c.id}`}
                       className="font-medium hover:underline"
@@ -243,22 +243,22 @@ export default function SeguimientoPagosPage() {
                     </Link>
                   </TableCell>
                   <TableCell>{c.clientes?.nombre}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden sm:table-cell text-right">
                     ${c.total.toFixed(2)}
                   </TableCell>
-                  <TableCell className="text-right text-green-600">
+                  <TableCell className="hidden lg:table-cell text-right text-green-600">
                     ${c.total_abonado.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right text-orange-600 font-medium">
                     ${c.saldo_restante.toFixed(2)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline">
                       {c.meses_credito ?? 2}{" "}
                       {(c.meses_credito ?? 2) === 1 ? "mes" : "meses"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant="secondary">
                       {c.periodicidad === "semanal"
                         ? "Semanal"

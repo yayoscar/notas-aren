@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
+import { X } from "lucide-react"
 import {
   LayoutDashboard,
   Package,
@@ -43,7 +44,12 @@ const allNavigation: NavItem[] = [
   { name: "Reportes", href: "/reportes", icon: BarChart3, adminOnly: true, group: "comercial" },
 ]
 
-export function Sidebar() {
+type SidebarProps = {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { vendedor, isAdmin } = useVendedorActual()
 
@@ -51,11 +57,15 @@ export function Sidebar() {
     ? allNavigation
     : allNavigation.filter((item) => !item.adminOnly)
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 flex-col border-r border-border/60 bg-card sm:flex">
+  const sidebarContent = (
+    <>
       {/* Brand header */}
-      <div className="flex h-16 items-center border-b border-border/60 px-6">
-        <Link href={isAdmin ? "/" : "/clientes"} className="flex items-center gap-3 group">
+      <div className="flex h-16 items-center justify-between border-b border-border/60 px-6">
+        <Link
+          href={isAdmin ? "/" : "/clientes"}
+          className="flex items-center gap-3 group"
+          onClick={onClose}
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 3h6l1 4H8L9 3Z" />
@@ -72,6 +82,13 @@ export function Sidebar() {
             </span>
           </div>
         </Link>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground sm:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -94,6 +111,7 @@ export function Sidebar() {
                     <Link
                       key={item.name}
                       href={item.href}
+                      onClick={onClose}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                         isActive
@@ -121,6 +139,32 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 flex-col border-r border-border/60 bg-card sm:flex">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile drawer overlay */}
+      {isOpen && (
+        <div className="fixed inset-0 z-40 sm:hidden" onClick={onClose}>
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border/60 bg-card transition-transform duration-300 ease-in-out sm:hidden",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   )
 }

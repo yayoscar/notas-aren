@@ -264,7 +264,7 @@ export default function NuevaEntradaPage() {
             <CardTitle>Datos de la entrada</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="proveedor_id">Proveedor *</Label>
                 <select
@@ -346,8 +346,8 @@ export default function NuevaEntradaPage() {
                     <TableHead>Producto</TableHead>
                     <TableHead className="w-24">Cantidad</TableHead>
                     <TableHead className="w-32">P. Compra</TableHead>
-                    <TableHead className="w-32">P. Contado</TableHead>
-                    <TableHead className="w-32">P. Crédito</TableHead>
+                    <TableHead className="hidden sm:table-cell w-32">P. Contado</TableHead>
+                    <TableHead className="hidden sm:table-cell w-32">P. Crédito</TableHead>
                     <TableHead className="w-32 text-right">Subtotal</TableHead>
                     <TableHead className="w-16" />
                   </TableRow>
@@ -380,7 +380,7 @@ export default function NuevaEntradaPage() {
                           onChange={(e) => updateDetalle(i, "precio_unitario", parseFloat(e.target.value) || 0)}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Input
                           type="number"
                           step="0.01"
@@ -389,7 +389,7 @@ export default function NuevaEntradaPage() {
                           onChange={(e) => updateDetalle(i, "precio_venta_contado", parseFloat(e.target.value) || 0)}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Input
                           type="number"
                           step="0.01"
@@ -429,7 +429,7 @@ export default function NuevaEntradaPage() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={() => router.push("/entradas")}>
             Cancelar
           </Button>

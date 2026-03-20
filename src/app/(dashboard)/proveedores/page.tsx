@@ -38,9 +38,9 @@ export default function ProveedoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Proveedores</h1>
-        <Button onClick={handleNew}>
+        <Button onClick={handleNew} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nuevo proveedor
         </Button>
@@ -57,9 +57,9 @@ export default function ProveedoresPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Contacto</TableHead>
+                  <TableHead className="hidden sm:table-cell">Contacto</TableHead>
                   <TableHead>Teléfono</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="w-20">Acciones</TableHead>
                 </TableRow>
@@ -75,9 +75,9 @@ export default function ProveedoresPage() {
                 {query.data?.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nombre}</TableCell>
-                    <TableCell>{p.nombre_contacto ?? "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{p.nombre_contacto ?? "—"}</TableCell>
                     <TableCell>{p.telefono ?? "—"}</TableCell>
-                    <TableCell>{p.email ?? "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{p.email ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={p.activo ? "default" : "secondary"}>
                         {p.activo ? "Activo" : "Inactivo"}

@@ -35,9 +35,9 @@ export default function GastosPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Gastos</h1>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/gastos/nuevo">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo gasto
@@ -72,10 +72,10 @@ export default function GastosPage() {
                 <TableRow>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Concepto</TableHead>
-                  <TableHead>Categoría</TableHead>
+                  <TableHead className="hidden sm:table-cell">Categoría</TableHead>
                   <TableHead className="text-right">Monto</TableHead>
-                  <TableHead>Tipo pago</TableHead>
-                  <TableHead>Registró</TableHead>
+                  <TableHead className="hidden sm:table-cell">Tipo pago</TableHead>
+                  <TableHead className="hidden sm:table-cell">Registró</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -95,7 +95,7 @@ export default function GastosPage() {
                       {new Date(g.fecha).toLocaleDateString("es-MX")}
                     </TableCell>
                     <TableCell className="font-medium">{g.concepto}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="secondary">
                         {g.cat_categoria_gasto?.nombre ?? "—"}
                       </Badge>
@@ -103,14 +103,14 @@ export default function GastosPage() {
                     <TableCell className="text-right font-medium">
                       ${g.monto.toFixed(2)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {g.tipo_pago === "efectivo"
                         ? "Efectivo"
                         : g.tipo_pago === "transferencia"
                           ? "Transferencia"
                           : "Retiro s/tarjeta"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {g.vendedores?.nombre ?? "—"}
                     </TableCell>
                   </TableRow>

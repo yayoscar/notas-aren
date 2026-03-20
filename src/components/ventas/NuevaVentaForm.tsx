@@ -429,7 +429,7 @@ export function NuevaVentaForm() {
             <CardTitle>Datos de la venta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <ClienteAutocomplete
@@ -551,7 +551,7 @@ export function NuevaVentaForm() {
         )}
 
         {/* Footer */}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"

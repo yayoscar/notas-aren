@@ -79,7 +79,7 @@ export function VendedorCreateForm({ onSubmit, isPending }: CreateProps) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="outline" onClick={() => window.history.back()}>
           Cancelar
         </Button>
@@ -142,7 +142,7 @@ export function VendedorEditForm({ vendedor, onSubmit, isPending }: EditProps) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="outline" onClick={() => window.history.back()}>
           Cancelar
         </Button>
