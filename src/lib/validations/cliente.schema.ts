@@ -11,7 +11,6 @@ export const clienteSchema = z.object({
   latitud: z.number().nullable().optional(),
   longitud: z.number().nullable().optional(),
   cliente_referido_id: z.string().nullable().optional(),
-  tipo_relacion_referido: z.string().nullable().optional(),
 })
 
 export type ClienteFormValues = z.infer<typeof clienteSchema>

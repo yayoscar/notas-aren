@@ -348,7 +348,6 @@ export interface Database {
           latitud: number | null
           longitud: number | null
           cliente_referido_id: string | null
-          tipo_relacion_referido: string | null
           limite_credito: number
           usuario_id: string | null
           activo: boolean
@@ -367,7 +366,6 @@ export interface Database {
           latitud?: number | null
           longitud?: number | null
           cliente_referido_id?: string | null
-          tipo_relacion_referido?: string | null
           limite_credito?: number
           usuario_id?: string | null
           activo?: boolean
@@ -386,7 +384,6 @@ export interface Database {
           latitud?: number | null
           longitud?: number | null
           cliente_referido_id?: string | null
-          tipo_relacion_referido?: string | null
           limite_credito?: number
           usuario_id?: string | null
           activo?: boolean

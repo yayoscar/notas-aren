@@ -130,7 +130,6 @@ export default function ClienteDetailPage() {
             <CardContent>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <DetailRow label="Referido por" value={c.referido_por?.nombre} />
-                <DetailRow label="Relación con referido" value={c.tipo_relacion_referido} />
                 <DetailRow label="Límite de crédito" value={`$${Number(c.limite_credito).toFixed(2)}`} />
                 <DetailRow
                   label="Fecha de alta"

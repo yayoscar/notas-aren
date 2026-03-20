@@ -58,7 +58,6 @@ export function ClienteForm({ cliente, onSubmit, isPending }: Props) {
       latitud: cliente?.latitud ?? null,
       longitud: cliente?.longitud ?? null,
       cliente_referido_id: cliente?.cliente_referido_id ?? "",
-      tipo_relacion_referido: cliente?.tipo_relacion_referido ?? "",
     },
   })
 
@@ -213,17 +212,6 @@ export function ClienteForm({ cliente, onSubmit, isPending }: Props) {
               )}
             </div>
           )}
-          <div className="space-y-2 mt-4">
-            <Label htmlFor="tipo_relacion_referido">Tipo de relación</Label>
-            <Input
-              id="tipo_relacion_referido"
-              {...register("tipo_relacion_referido")}
-              placeholder="Ej: hermano, hijo, amigo, cuñado, vecino..."
-            />
-            <p className="text-xs text-muted-foreground">
-              Describe la relación con el cliente que lo recomendó
-            </p>
-          </div>
         </CardContent>
       </Card>
 
