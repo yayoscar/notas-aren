@@ -21,12 +21,20 @@ export function useClientes() {
         .from("clientes")
         .select(`
           *,
-          cat_ciudad(nombre),
-          referido_por:clientes!cliente_referido_id(nombre)
+          cat_ciudad(nombre)
         `)
         .order("nombre")
       if (error) throw error
-      return data as unknown as ClienteWithRelations[]
+      // Resolve referido_por in-memory (self-join can fail in PostgREST)
+      const clientes = data as unknown as (Cliente & { cat_ciudad: { nombre: string } | null })[]
+      return clientes.map((c) => ({
+        ...c,
+        referido_por: c.cliente_referido_id
+          ? clientes.find((r) => r.id === c.cliente_referido_id)
+            ? { nombre: clientes.find((r) => r.id === c.cliente_referido_id)!.nombre }
+            : null
+          : null,
+      }))
     },
   })
 
@@ -69,13 +77,22 @@ export function useCliente(id: string) {
         .from("clientes")
         .select(`
           *,
-          cat_ciudad(nombre),
-          referido_por:clientes!cliente_referido_id(nombre)
+          cat_ciudad(nombre)
         `)
         .eq("id", id)
         .single()
       if (error) throw error
-      return data as unknown as ClienteWithRelations
+      const cliente = data as unknown as Cliente & { cat_ciudad: { nombre: string } | null }
+      let referido_por: { nombre: string } | null = null
+      if (cliente.cliente_referido_id) {
+        const { data: ref } = await supabase
+          .from("clientes")
+          .select("nombre")
+          .eq("id", cliente.cliente_referido_id)
+          .single()
+        if (ref) referido_por = { nombre: ref.nombre }
+      }
+      return { ...cliente, referido_por }
     },
     enabled: !!id,
   })
