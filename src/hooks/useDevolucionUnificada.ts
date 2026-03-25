@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import type { Venta } from "@/lib/supabase/types"
+
 import { toast } from "sonner"
 
 interface ProductoDevueltoInput {
@@ -44,7 +44,6 @@ export function useDevolucionUnificada() {
         tipo_venta_original,
         destino_monto,
         motivo,
-        ...baseData
       } = input
 
       // 1. Fetch venta completa con detalle
