@@ -5,6 +5,7 @@ import { useProductos } from "@/hooks/useProductos"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 import type { Producto } from "@/lib/supabase/types"
 
 interface Props {
@@ -30,6 +31,11 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
             (p.sku ?? "").toLowerCase().includes(s) ||
             p.marca.toLowerCase().includes(s))
       )
+      .sort((a, b) => {
+        // Sort: nuevos first, then testers, then parciales
+        const order: Record<string, number> = { nuevo: 0, tester: 1, parcial: 2 }
+        return (order[a.estado_producto] ?? 0) - (order[b.estado_producto] ?? 0)
+      })
       .slice(0, 10)
   }, [query.data, search, excludeIds])
 
@@ -68,7 +74,14 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{p.nombre}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium">{p.nombre}</p>
+                      {p.estado_producto && p.estado_producto !== "nuevo" && (
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                          {p.estado_producto === "tester" ? "Tester" : "Parcial"}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {p.sku} · {p.marca}
                     </p>
@@ -81,11 +94,12 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
                       Stock: {p.stock_actual}
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {precioLabel}: $
-                      {(tipoVenta === "contado"
-                        ? p.precio_venta_contado
-                        : p.precio_venta_credito
-                      ).toFixed(2)}
+                      {precioLabel}:{" "}
+                      {formatMoney(
+                        tipoVenta === "contado"
+                          ? p.precio_venta_contado
+                          : p.precio_venta_credito
+                      )}
                     </p>
                   </div>
                 </div>

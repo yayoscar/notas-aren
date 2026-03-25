@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PagoForm } from "./PagoForm"
 import { HistorialCrediticioDialog } from "./HistorialCrediticioDialog"
 import { History, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 
 interface Props {
   clienteId: string | null
@@ -67,8 +68,7 @@ export function CreditoFields({
         <div className="flex items-center gap-2 rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
-            El cliente ha rebasado su límite de crédito ($
-            {deudaAcumulada.toFixed(2)} de $10,000.00)
+            El cliente ha rebasado su límite de crédito ({formatMoney(deudaAcumulada)} de $10,000.00)
           </span>
         </div>
       )}
@@ -76,8 +76,7 @@ export function CreditoFields({
         <div className="flex items-center gap-2 rounded-lg border border-yellow-500 bg-yellow-50 p-3 text-sm text-yellow-800">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
-            El cliente está cerca del límite de crédito ($
-            {deudaAcumulada.toFixed(2)} de $10,000.00)
+            El cliente está cerca del límite de crédito ({formatMoney(deudaAcumulada)} de $10,000.00)
           </span>
         </div>
       )}

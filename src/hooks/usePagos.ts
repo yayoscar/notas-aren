@@ -157,6 +157,8 @@ export function useCrearAbono() {
       queryClient.invalidateQueries({ queryKey: ["creditos_activos"] })
       queryClient.invalidateQueries({ queryKey: ["creditos_cliente"] })
       queryClient.invalidateQueries({ queryKey: ["productos"] })
+      queryClient.invalidateQueries({ queryKey: ["cobranza"] })
+      queryClient.invalidateQueries({ queryKey: ["cobranza_agenda"] })
       toast.success("Abono registrado exitosamente")
     },
     onError: () => toast.error("Error al registrar abono"),

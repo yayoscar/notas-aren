@@ -199,3 +199,110 @@ export function useIngresosVsEgresos(fechaInicio: string, fechaFin: string) {
     enabled: !!fechaInicio && !!fechaFin,
   })
 }
+
+const TIPO_PAGO_LABELS: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  retiro_sin_tarjeta: "Retiro s/tarjeta",
+}
+
+export function usePagosPorMetodo(fechaInicio: string, fechaFin: string) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ["reportes", "pagos_metodo", fechaInicio, fechaFin],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("tipo_pago, monto")
+        .gte("fecha", fechaInicio)
+        .lte("fecha", fechaFin)
+      if (error) throw error
+
+      const agrupado = (data ?? []).reduce(
+        (acc, p) => {
+          const tipo = p.tipo_pago
+          acc[tipo] = (acc[tipo] || 0) + p.monto
+          return acc
+        },
+        {} as Record<string, number>
+      )
+
+      return Object.entries(agrupado).map(([tipo, total]) => ({
+        tipo: TIPO_PAGO_LABELS[tipo] ?? tipo,
+        total,
+      }))
+    },
+    enabled: !!fechaInicio && !!fechaFin,
+  })
+}
+
+export function usePagosPorCuenta(fechaInicio: string, fechaFin: string) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ["reportes", "pagos_cuenta", fechaInicio, fechaFin],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("monto, tipo_pago, cat_cuenta_bancaria(alias)")
+        .gte("fecha", fechaInicio)
+        .lte("fecha", fechaFin)
+      if (error) throw error
+
+      const agrupado = (data ?? [])
+        .filter((p) => p.tipo_pago === "transferencia")
+        .reduce(
+          (acc, p) => {
+            const cuenta =
+              (p.cat_cuenta_bancaria as unknown as { alias: string })?.alias ??
+              "Sin cuenta"
+            acc[cuenta] = (acc[cuenta] || 0) + p.monto
+            return acc
+          },
+          {} as Record<string, number>
+        )
+
+      return Object.entries(agrupado)
+        .map(([cuenta, total]) => ({ cuenta, total }))
+        .sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaInicio && !!fechaFin,
+  })
+}
+
+export function usePagosPorVendedorYMetodo(fechaInicio: string, fechaFin: string) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ["reportes", "pagos_vendedor_metodo", fechaInicio, fechaFin],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("monto, tipo_pago, vendedores(nombre)")
+        .gte("fecha", fechaInicio)
+        .lte("fecha", fechaFin)
+      if (error) throw error
+
+      const agrupado = (data ?? []).reduce(
+        (acc, p) => {
+          const vendedor =
+            (p.vendedores as unknown as { nombre: string })?.nombre ??
+            "Sin asignar"
+          if (!acc[vendedor])
+            acc[vendedor] = { efectivo: 0, transferencia: 0, retiro_sin_tarjeta: 0, total: 0 }
+          const tipo = p.tipo_pago as "efectivo" | "transferencia" | "retiro_sin_tarjeta"
+          if (tipo in acc[vendedor]) acc[vendedor][tipo] += p.monto
+          acc[vendedor].total += p.monto
+          return acc
+        },
+        {} as Record<string, { efectivo: number; transferencia: number; retiro_sin_tarjeta: number; total: number }>
+      )
+
+      return Object.entries(agrupado)
+        .map(([vendedor, datos]) => ({ vendedor, ...datos }))
+        .sort((a, b) => b.total - a.total)
+    },
+    enabled: !!fechaInicio && !!fechaFin,
+  })
+}

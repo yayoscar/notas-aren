@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCreditosCliente } from "@/hooks/usePagos"
+import { formatMoney } from "@/lib/utils"
 
 interface Props {
   clienteId: string
@@ -74,13 +75,13 @@ export function HistorialCrediticioDialog({
                     {new Date(c.fecha).toLocaleDateString("es-MX")}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${c.total.toFixed(2)}
+                    {formatMoney(c.total)}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${c.total_abonado.toFixed(2)}
+                    {formatMoney(c.total_abonado)}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${c.saldo_restante.toFixed(2)}
+                    {formatMoney(c.saldo_restante)}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -91,7 +92,7 @@ export function HistorialCrediticioDialog({
                       }
                     >
                       {c.estado_credito === "liquidado"
-                        ? "Liquidado"
+                        ? "Pagado"
                         : "Activo"}
                     </Badge>
                   </TableCell>

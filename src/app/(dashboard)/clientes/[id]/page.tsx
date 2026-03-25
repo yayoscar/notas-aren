@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { formatMoney } from "@/lib/utils"
 
 const MapPicker = dynamic(
   () => import("@/components/clientes/MapPicker").then((m) => m.MapPicker),
@@ -40,8 +41,9 @@ export default function ClienteDetailPage() {
   const { vendedor, isAdmin } = useVendedorActual()
 
   function handleSubmit(values: ClienteFormValues) {
+    const keepEmpty = new Set(["direccion", "referencia_ubicacion"])
     const cleaned = Object.fromEntries(
-      Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])
+      Object.entries(values).map(([k, v]) => [k, v === "" && !keepEmpty.has(k) ? null : v])
     )
     update.mutate({ id, ...cleaned } as unknown as Parameters<typeof update.mutate>[0], {
       onSuccess: () => router.push("/clientes"),
@@ -131,7 +133,7 @@ export default function ClienteDetailPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <DetailRow label="Referido por" value={c.referido_por?.nombre} />
                 <DetailRow label="Relación con referido" value={c.tipo_relacion_referido} />
-                <DetailRow label="Límite de crédito" value={`$${Number(c.limite_credito).toFixed(2)}`} />
+                <DetailRow label="Límite de crédito" value={formatMoney(Number(c.limite_credito))} />
                 <DetailRow
                   label="Fecha de alta"
                   value={new Date(c.created_at).toLocaleDateString("es-MX")}
@@ -239,18 +241,18 @@ export default function ClienteDetailPage() {
                             {v.tipo_venta === "credito" ? "Crédito" : "Contado"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">${Number(v.total).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{formatMoney(Number(v.total))}</TableCell>
                         <TableCell>
                           {v.tipo_venta === "credito" ? (
                             <Badge variant={v.estado_credito === "liquidado" ? "secondary" : "destructive"}>
-                              {v.estado_credito === "activo" ? "Crédito activo" : "Liquidado"}
+                              {v.estado_credito === "activo" ? "Crédito activo" : "Pagado"}
                             </Badge>
                           ) : (
                             <Badge variant="secondary">Pagada</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {v.tipo_venta === "credito" ? `$${v.saldo_restante.toFixed(2)}` : "—"}
+                          {v.tipo_venta === "credito" ? formatMoney(v.saldo_restante) : "—"}
                         </TableCell>
                       </TableRow>
                     ))}

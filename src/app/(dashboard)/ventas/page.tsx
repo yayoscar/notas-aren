@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, List } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 
 type Vista = "inicio" | "listado"
 
@@ -65,20 +66,40 @@ export default function VentasPage() {
   )
 }
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+type EstadoVentaFilter = "activas" | "canceladas" | "todas"
+
 function VentasListado({ onBack }: { onBack: () => void }) {
   const { query } = useVentas()
   const [search, setSearch] = useState("")
+  const [estadoFilter, setEstadoFilter] = useState<EstadoVentaFilter>("activas")
 
   const filtered = useMemo(() => {
     if (!query.data) return []
-    if (!search) return query.data
+    let items = query.data
+
+    if (estadoFilter === "activas") {
+      items = items.filter((v) => v.estado_venta !== "cancelada")
+    } else if (estadoFilter === "canceladas") {
+      items = items.filter((v) => v.estado_venta === "cancelada")
+    }
+
+    if (!search) return items
     const s = search.toLowerCase()
-    return query.data.filter(
+    return items.filter(
       (v) =>
         v.folio.toLowerCase().includes(s) ||
-        v.clientes?.nombre.toLowerCase().includes(s)
+        v.clientes?.nombre.toLowerCase().includes(s) ||
+        (v.vendedores?.nombre ?? "").toLowerCase().includes(s)
     )
-  }, [query.data, search])
+  }, [query.data, search, estadoFilter])
 
   return (
     <div className="space-y-4">
@@ -102,14 +123,29 @@ function VentasListado({ onBack }: { onBack: () => void }) {
           <CardTitle>Listado de ventas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por folio o cliente..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+          <div className="mb-4 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por folio, cliente o vendedor..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={estadoFilter}
+              onValueChange={(v) => setEstadoFilter(v as EstadoVentaFilter)}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="activas">Activas</SelectItem>
+                <SelectItem value="canceladas">Canceladas</SelectItem>
+                <SelectItem value="todas">Todas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {query.isLoading ? (
@@ -124,6 +160,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                 <TableRow>
                   <TableHead className="hidden sm:table-cell">Folio</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead className="hidden md:table-cell">Vendedor</TableHead>
                   <TableHead className="hidden sm:table-cell">Tipo</TableHead>
                   <TableHead className="hidden sm:table-cell">Fecha</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -134,7 +171,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center text-muted-foreground"
                     >
                       Sin registros
@@ -142,7 +179,10 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                   </TableRow>
                 )}
                 {filtered.map((v) => (
-                  <TableRow key={v.id}>
+                  <TableRow
+                    key={v.id}
+                    className={v.estado_venta === "cancelada" ? "opacity-50" : ""}
+                  >
                     <TableCell className="hidden sm:table-cell">
                       <Link
                         href={`/ventas/${v.id}`}
@@ -159,6 +199,9 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                         {v.clientes?.nombre ?? "—"}
                       </Link>
                     </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {v.vendedores?.nombre ?? "—"}
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge
                         variant={
@@ -172,10 +215,12 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                       {new Date(v.fecha).toLocaleDateString("es-MX")}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${v.total.toFixed(2)}
+                      {formatMoney(v.total)}
                     </TableCell>
                     <TableCell>
-                      {v.tipo_venta === "credito" && (
+                      {v.estado_venta === "cancelada" ? (
+                        <Badge variant="destructive">Cancelada</Badge>
+                      ) : v.tipo_venta === "credito" ? (
                         <Badge
                           variant={
                             v.estado_credito === "liquidado"
@@ -184,11 +229,10 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                           }
                         >
                           {v.estado_credito === "liquidado"
-                            ? "Liquidado"
+                            ? "Pagado"
                             : "Activo"}
                         </Badge>
-                      )}
-                      {v.tipo_venta === "contado" && (
+                      ) : (
                         <Badge variant="default">Pagado</Badge>
                       )}
                     </TableCell>

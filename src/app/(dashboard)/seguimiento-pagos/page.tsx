@@ -22,6 +22,7 @@ import {
   lastDayOfMonth,
   setDate,
 } from "date-fns"
+import { formatMoney } from "@/lib/utils"
 
 function calcularProximoPago(
   periodicidad: string | null,
@@ -140,7 +141,7 @@ export default function SeguimientoPagosPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-right">
-                      ${c.saldo_restante.toFixed(2)}
+                      {formatMoney(c.saldo_restante)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="destructive">
@@ -186,7 +187,7 @@ export default function SeguimientoPagosPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-right">
-                      ${c.saldo_restante.toFixed(2)}
+                      {formatMoney(c.saldo_restante)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
@@ -244,13 +245,13 @@ export default function SeguimientoPagosPage() {
                   </TableCell>
                   <TableCell>{c.clientes?.nombre}</TableCell>
                   <TableCell className="hidden sm:table-cell text-right">
-                    ${c.total.toFixed(2)}
+                    {formatMoney(c.total)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-right text-green-600">
-                    ${c.total_abonado.toFixed(2)}
+                    {formatMoney(c.total_abonado)}
                   </TableCell>
                   <TableCell className="text-right text-orange-600 font-medium">
-                    ${c.saldo_restante.toFixed(2)}
+                    {formatMoney(c.saldo_restante)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline">

@@ -11,7 +11,9 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 import type { VentaDetalleValues } from "@/lib/validations/venta.schema"
 
 interface Props {
@@ -58,7 +60,14 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
           return (
             <TableRow key={d.producto_id}>
               <TableCell>
-                <p className="text-sm font-medium">{d._nombre}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium">{d._nombre}</p>
+                  {d._estado_producto && d._estado_producto !== "nuevo" && (
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                      {d._estado_producto === "tester" ? "Tester" : "Parcial"}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Stock: {d._stock_actual}
                 </p>
@@ -76,7 +85,7 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
                 />
                 {precioInvalido && (
                   <p className="text-xs text-destructive mt-1">
-                    Mín: ${precioMinimo.toFixed(2)}
+                    Mín: {formatMoney(precioMinimo)}
                   </p>
                 )}
               </TableCell>
@@ -92,7 +101,7 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
                 />
               </TableCell>
               <TableCell className="text-right font-medium">
-                ${subtotal.toFixed(2)}
+                {formatMoney(subtotal)}
               </TableCell>
               <TableCell>
                 <Button
@@ -115,7 +124,7 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
               Total
             </TableCell>
             <TableCell className="text-right font-bold text-lg">
-              ${total.toFixed(2)}
+              {formatMoney(total)}
             </TableCell>
             <TableCell />
           </TableRow>

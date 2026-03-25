@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash2, Search } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 
 interface DetalleRow {
   producto_id: string
@@ -332,7 +333,7 @@ export default function NuevaEntradaPage() {
                         <span className="font-mono text-muted-foreground">{p.sku}</span>{" "}
                         {p.nombre}
                       </span>
-                      <span className="text-muted-foreground">${Number(p.precio_compra).toFixed(2)}</span>
+                      <span className="text-muted-foreground">{formatMoney(Number(p.precio_compra))}</span>
                     </button>
                   ))}
                 </div>
@@ -399,7 +400,7 @@ export default function NuevaEntradaPage() {
                         />
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        ${(d.cantidad * d.precio_unitario).toFixed(2)}
+                        {formatMoney(d.cantidad * d.precio_unitario)}
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" type="button" onClick={() => removeDetalle(i)}>
@@ -414,7 +415,7 @@ export default function NuevaEntradaPage() {
                         Total:
                       </TableCell>
                       <TableCell className="text-right font-bold font-mono">
-                        ${total.toFixed(2)}
+                        {formatMoney(total)}
                       </TableCell>
                       <TableCell />
                     </TableRow>

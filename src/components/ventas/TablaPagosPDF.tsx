@@ -15,6 +15,7 @@ import {
   format,
 } from "date-fns"
 import { es } from "date-fns/locale"
+import { formatMoney } from "@/lib/utils"
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 10, fontFamily: "Helvetica" },
@@ -174,17 +175,17 @@ export function TablaPagosPDF({
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Total del crédito:</Text>
-          <Text style={styles.bold}>${total.toFixed(2)}</Text>
+          <Text style={styles.bold}>{formatMoney(total)}</Text>
         </View>
         {primerAbono > 0 && (
           <View style={styles.row}>
             <Text style={styles.label}>Primer abono:</Text>
-            <Text>${primerAbono.toFixed(2)}</Text>
+            <Text>{formatMoney(primerAbono)}</Text>
           </View>
         )}
         <View style={styles.row}>
           <Text style={styles.label}>Saldo a pagar:</Text>
-          <Text style={styles.bold}>${saldoPendiente.toFixed(2)}</Text>
+          <Text style={styles.bold}>{formatMoney(saldoPendiente)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Plazo:</Text>
@@ -219,9 +220,9 @@ export function TablaPagosPDF({
             <Text style={styles.colFecha}>
               {format(c.fecha, "dd/MM/yyyy", { locale: es })}
             </Text>
-            <Text style={styles.colMonto}>${c.monto.toFixed(2)}</Text>
+            <Text style={styles.colMonto}>{formatMoney(c.monto)}</Text>
             <Text style={styles.colAbonado}>
-              {c.abonado > 0 ? `$${c.abonado.toFixed(2)}` : "—"}
+              {c.abonado > 0 ? formatMoney(c.abonado) : "—"}
             </Text>
             <Text
               style={[
@@ -236,7 +237,7 @@ export function TablaPagosPDF({
               {c.estado === "pagado"
                 ? "Pagado"
                 : c.estado === "parcial"
-                  ? `Parcial ($${c.abonado.toFixed(2)}/$${c.monto.toFixed(2)})`
+                  ? `Parcial (${formatMoney(c.abonado)}/${formatMoney(c.monto)})`
                   : "Pendiente"}
             </Text>
           </View>
@@ -246,13 +247,13 @@ export function TablaPagosPDF({
           <Text style={[styles.colNum, { color: "transparent" }]}>.</Text>
           <Text style={[styles.colFecha, styles.bold]}>Totales</Text>
           <Text style={[styles.colMonto, styles.bold]}>
-            ${saldoPendiente.toFixed(2)}
+            {formatMoney(saldoPendiente)}
           </Text>
           <Text style={[styles.colAbonado, styles.bold, styles.estadoPagado]}>
-            ${totalAbonado.toFixed(2)}
+            {formatMoney(totalAbonado)}
           </Text>
           <Text style={[styles.colEstado, styles.bold, styles.estadoPendiente]}>
-            Resta: ${saldoRestante.toFixed(2)}
+            Resta: {formatMoney(saldoRestante)}
           </Text>
         </View>
 

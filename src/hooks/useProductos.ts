@@ -55,6 +55,30 @@ export function useProductos() {
     mutationFn: async ({ id, ...values }: UpdateTables<"productos"> & { id: string }) => {
       const { data, error } = await supabase.from("productos").update(values).eq("id", id).select().single()
       if (error) throw error
+
+      // Cascade inherited fields to derivados (testers/parciales)
+      const cascadeFields = {
+        nombre: values.nombre,
+        marca: values.marca,
+        sku: values.sku,
+        genero_id: values.genero_id,
+        tamano_id: values.tamano_id,
+        presentacion_id: values.presentacion_id,
+        concentracion_id: values.concentracion_id,
+        tipo_perfume_id: values.tipo_perfume_id,
+        proveedor_id: values.proveedor_id,
+      }
+      // Only include fields that were actually updated
+      const fieldsToUpdate = Object.fromEntries(
+        Object.entries(cascadeFields).filter(([, v]) => v !== undefined)
+      )
+      if (Object.keys(fieldsToUpdate).length > 0) {
+        await supabase
+          .from("productos")
+          .update({ ...fieldsToUpdate, updated_at: new Date().toISOString() })
+          .eq("producto_origen_id", id)
+      }
+
       return data
     },
     onSuccess: () => {
@@ -88,6 +112,54 @@ export function useProducto(id: string) {
         .single()
       if (error) throw error
       return data as unknown as ProductoWithRelations
+    },
+    enabled: !!id,
+  })
+}
+
+export function useProductoConDerivados(id: string) {
+  const supabase = createClient()
+
+  return useQuery<{
+    producto: ProductoWithRelations
+    derivados: ProductoWithRelations[]
+  }>({
+    queryKey: ["productos", id, "derivados"],
+    queryFn: async () => {
+      const { data: producto, error: prodError } = await supabase
+        .from("productos")
+        .select(`
+          *,
+          cat_genero(nombre),
+          cat_tamano(etiqueta),
+          cat_presentacion(nombre),
+          cat_concentracion(nombre),
+          cat_tipo_perfume(nombre),
+          proveedores(nombre)
+        `)
+        .eq("id", id)
+        .single()
+      if (prodError) throw prodError
+
+      const { data: derivados, error: derError } = await supabase
+        .from("productos")
+        .select(`
+          *,
+          cat_genero(nombre),
+          cat_tamano(etiqueta),
+          cat_presentacion(nombre),
+          cat_concentracion(nombre),
+          cat_tipo_perfume(nombre),
+          proveedores(nombre)
+        `)
+        .eq("producto_origen_id", id)
+        .order("created_at", { ascending: false })
+      if (derError) throw derError
+
+      return {
+        producto: producto as unknown as ProductoWithRelations,
+        derivados: (derivados ?? []) as unknown as ProductoWithRelations[],
+      }
     },
     enabled: !!id,
   })

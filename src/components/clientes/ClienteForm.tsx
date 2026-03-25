@@ -143,13 +143,13 @@ export function ClienteForm({ cliente, onSubmit, isPending }: Props) {
               {errors.ciudad_id && <p className="text-sm text-destructive">{errors.ciudad_id.message}</p>}
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="direccion">Dirección *</Label>
+              <Label htmlFor="direccion">Dirección</Label>
               <Input id="direccion" {...register("direccion")} placeholder="Calle, número, colonia" />
               {errors.direccion && <p className="text-sm text-destructive">{errors.direccion.message}</p>}
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="referencia_ubicacion">Referencia de ubicación *</Label>
+            <Label htmlFor="referencia_ubicacion">Referencia de ubicación</Label>
             <Input id="referencia_ubicacion" {...register("referencia_ubicacion")} placeholder="Entre calles, cerca de..." />
             {errors.referencia_ubicacion && <p className="text-sm text-destructive">{errors.referencia_ubicacion.message}</p>}
           </div>

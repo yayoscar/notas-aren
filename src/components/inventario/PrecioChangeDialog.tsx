@@ -41,8 +41,10 @@ const LABELS: { key: keyof Precios; label: string }[] = [
   { key: "precio_venta_credito", label: "Venta crédito" },
 ]
 
+import { formatMoney } from "@/lib/utils"
+
 function formatPrice(value: number) {
-  return `$${Number(value).toFixed(2)}`
+  return formatMoney(Number(value))
 }
 
 function formatDiff(actual: number, nuevo: number) {

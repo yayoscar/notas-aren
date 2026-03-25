@@ -11,6 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PagoForm } from "@/components/ventas/PagoForm"
 import { toast } from "sonner"
+import { formatMoney } from "@/lib/utils"
+import { AbonoTicketPDF } from "@/components/ventas/AbonoTicketPDF"
+import { pdf } from "@react-pdf/renderer"
+import { downloadPDF } from "@/lib/pdf-utils"
 
 export default function AbonosPage() {
   const { vendedor } = useVendedorActual()
@@ -65,7 +69,27 @@ export default function AbonosPage() {
         fecha: abonoFecha,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          try {
+            const blob = await pdf(
+              <AbonoTicketPDF
+                folio={creditoSeleccionado!.folio}
+                clienteNombre={creditoSeleccionado!.clientes?.nombre ?? ""}
+                fecha={abonoFecha}
+                monto={abonoMonto}
+                tipoPago={abonoTipo}
+                totalCredito={creditoSeleccionado!.total}
+                totalAbonado={creditoSeleccionado!.total_abonado + abonoMonto}
+                saldoRestante={creditoSeleccionado!.saldo_restante - abonoMonto}
+                saldoAnterior={creditoSeleccionado!.total_abonado}
+                vendedorNombre={vendedor?.nombre ?? ""}
+                fechaVenta={creditoSeleccionado!.fecha}
+              />
+            ).toBlob()
+            await downloadPDF(blob, `abono-${creditoSeleccionado!.folio}.pdf`)
+          } catch {
+            // PDF generation failed silently, abono was still recorded
+          }
           setStep(1)
           setClienteId("")
           setVentaId("")
@@ -131,18 +155,18 @@ export default function AbonosPage() {
                     <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
                       <div>
                         <p className="text-muted-foreground">Total</p>
-                        <p className="font-medium">${c.total.toFixed(2)}</p>
+                        <p className="font-medium">{formatMoney(c.total)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Abonado</p>
                         <p className="font-medium text-green-600">
-                          ${c.total_abonado.toFixed(2)}
+                          {formatMoney(c.total_abonado)}
                         </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Restante</p>
                         <p className="font-bold text-orange-600">
-                          ${c.saldo_restante.toFixed(2)}
+                          {formatMoney(c.saldo_restante)}
                         </p>
                       </div>
                     </div>
@@ -181,7 +205,7 @@ export default function AbonosPage() {
               onCuentaChange={setAbonoCuenta}
             />
             <p className="text-sm text-muted-foreground">
-              Saldo restante: ${creditoSeleccionado.saldo_restante.toFixed(2)}
+              Saldo restante: {formatMoney(creditoSeleccionado.saldo_restante)}
             </p>
             <div className="flex justify-end gap-2">
               <Button

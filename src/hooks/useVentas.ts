@@ -11,11 +11,12 @@ export type VentaWithRelations = Venta & {
 }
 
 export type VentaDetalleWithProducto = VentaDetalle & {
-  productos: { nombre: string; sku: string } | null
+  productos: { nombre: string; sku: string; estado_producto: string } | null
 }
 
 export type PagoWithCuenta = Pago & {
   cat_cuenta_bancaria: { alias: string; clabe: string } | null
+  vendedores: { nombre: string } | null
 }
 
 export type VentaFullDetail = Venta & {
@@ -141,7 +142,128 @@ export function useVentas() {
     onError: () => toast.error("Error al registrar venta"),
   })
 
-  return { query, create }
+  const updateVenta = useMutation({
+    mutationFn: async (input: {
+      venta_id: string
+      detalles: VentaDetalleInput[]
+      motivo_edicion: string
+      vendedor_id: string
+    }) => {
+      // Snapshot current state
+      const { data: ventaActual, error: fetchErr } = await supabase
+        .from("ventas")
+        .select("*, ventas_detalle(*)")
+        .eq("id", input.venta_id)
+        .single()
+      if (fetchErr) throw fetchErr
+
+      const oldDetalles = (
+        ventaActual as { ventas_detalle: Array<{ producto_id: string; cantidad: number }> }
+      ).ventas_detalle
+
+      // Calculate stock diffs: revert old, apply new
+      // Build maps: producto_id -> total quantity
+      const oldQtyMap: Record<string, number> = {}
+      for (const d of oldDetalles) {
+        oldQtyMap[d.producto_id] = (oldQtyMap[d.producto_id] || 0) + d.cantidad
+      }
+      const newQtyMap: Record<string, number> = {}
+      for (const d of input.detalles) {
+        newQtyMap[d.producto_id] = (newQtyMap[d.producto_id] || 0) + d.cantidad
+      }
+
+      // All affected product IDs
+      const allProductIds = Array.from(new Set([
+        ...Object.keys(oldQtyMap),
+        ...Object.keys(newQtyMap),
+      ]))
+
+      for (const prodId of allProductIds) {
+        const oldQty = oldQtyMap[prodId] || 0
+        const newQty = newQtyMap[prodId] || 0
+        const diff = newQty - oldQty // positive = need more stock out, negative = return stock
+
+        if (diff !== 0) {
+          const { data: prod } = await supabase
+            .from("productos")
+            .select("stock_actual")
+            .eq("id", prodId)
+            .single()
+          const stockAntes = prod?.stock_actual ?? 0
+
+          await supabase
+            .from("productos")
+            .update({
+              stock_actual: stockAntes - diff,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", prodId)
+
+          await supabase.from("stock_movimientos").insert({
+            producto_id: prodId,
+            tipo: diff > 0 ? "SALIDA_VENTA" : "AJUSTE_POSITIVO",
+            cantidad: Math.abs(diff),
+            stock_antes: stockAntes,
+            stock_despues: stockAntes - diff,
+            referencia_id: input.venta_id,
+            referencia_tipo: "edicion_venta",
+          })
+        }
+      }
+
+      // Delete old detalles and insert new ones
+      await supabase
+        .from("ventas_detalle")
+        .delete()
+        .eq("venta_id", input.venta_id)
+
+      const newTotal = input.detalles.reduce(
+        (sum, d) => sum + d.cantidad * d.precio_unitario,
+        0
+      )
+
+      await supabase.from("ventas_detalle").insert(
+        input.detalles.map((d) => ({
+          venta_id: input.venta_id,
+          producto_id: d.producto_id,
+          cantidad: d.cantidad,
+          precio_unitario: d.precio_unitario,
+        }))
+      )
+
+      // Update venta total
+      await supabase
+        .from("ventas")
+        .update({ total: newTotal, updated_at: new Date().toISOString() })
+        .eq("id", input.venta_id)
+
+      // Record history
+      await supabase.from("ventas_historial").insert({
+        venta_id: input.venta_id,
+        tipo: "edicion",
+        usuario_id: input.vendedor_id,
+        datos_anteriores: ventaActual as unknown as Record<string, unknown>,
+        datos_nuevos: {
+          detalles: input.detalles,
+          total: newTotal,
+        },
+        motivo: input.motivo_edicion,
+      })
+
+      return { id: input.venta_id, total: newTotal }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["ventas"] })
+      queryClient.invalidateQueries({
+        queryKey: ["ventas", variables.venta_id],
+      })
+      queryClient.invalidateQueries({ queryKey: ["productos"] })
+      toast.success("Venta actualizada exitosamente")
+    },
+    onError: () => toast.error("Error al actualizar venta"),
+  })
+
+  return { query, create, updateVenta }
 }
 
 export function useVenta(id: string) {
@@ -153,7 +275,7 @@ export function useVenta(id: string) {
       const { data, error } = await supabase
         .from("ventas")
         .select(
-          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku)), pagos(*, cat_cuenta_bancaria(alias, clabe))`
+          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku, estado_producto)), pagos(*, cat_cuenta_bancaria(alias, clabe), vendedores(nombre))`
         )
         .eq("id", id)
         .single()

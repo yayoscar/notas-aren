@@ -44,6 +44,7 @@ import { useClientes } from "@/hooks/useClientes"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { useCreditosCliente } from "@/hooks/usePagos"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
+import { formatMoney } from "@/lib/utils"
 import { CheckCircle2, Share2, Download } from "lucide-react"
 import type { Producto } from "@/lib/supabase/types"
 import type { VentaDetalleValues } from "@/lib/validations/venta.schema"
@@ -120,6 +121,7 @@ export function NuevaVentaForm() {
           ? producto.precio_venta_contado
           : producto.precio_venta_credito
 
+      const prodAny = producto as Record<string, unknown>
       setDetalles((prev) => [
         ...prev,
         {
@@ -127,8 +129,13 @@ export function NuevaVentaForm() {
           precio_unitario: precioRef,
           cantidad: 1,
           _nombre: producto.nombre,
+          _marca: producto.marca,
+          _genero: (prodAny.cat_genero as { nombre: string } | null)?.nombre ?? undefined,
+          _sku: producto.sku,
           _stock_actual: producto.stock_actual,
-          _precio_minimo: precioRef,
+          _precio_minimo:
+            producto.estado_producto === "parcial" ? 0 : precioRef,
+          _estado_producto: producto.estado_producto,
         },
       ])
     },
@@ -250,12 +257,17 @@ export function NuevaVentaForm() {
           cantidad: d.cantidad,
           precio_unitario: d.precio_unitario,
           subtotal: d.cantidad * d.precio_unitario,
+          estado_producto: d._estado_producto,
+          marca: d._marca,
+          genero: d._genero,
+          sku: d._sku,
         }))}
         tipoPago={pagoTipo || undefined}
         periodicidad={tipoVenta === "credito" ? periodicidad : undefined}
         fechaPrimerPago={
           tipoVenta === "credito" ? fechaPrimerPago : undefined
         }
+        mesesCredito={tipoVenta === "credito" ? mesesCredito : undefined}
       />
     ).toBlob()
     await sharePDF(
@@ -280,12 +292,17 @@ export function NuevaVentaForm() {
           cantidad: d.cantidad,
           precio_unitario: d.precio_unitario,
           subtotal: d.cantidad * d.precio_unitario,
+          estado_producto: d._estado_producto,
+          marca: d._marca,
+          genero: d._genero,
+          sku: d._sku,
         }))}
         tipoPago={pagoTipo || undefined}
         periodicidad={tipoVenta === "credito" ? periodicidad : undefined}
         fechaPrimerPago={
           tipoVenta === "credito" ? fechaPrimerPago : undefined
         }
+        mesesCredito={tipoVenta === "credito" ? mesesCredito : undefined}
       />
     ).toBlob()
     await downloadPDF(blob, `ticket-${ventaCreada?.folio ?? "venta"}.pdf`)
@@ -398,15 +415,22 @@ export function NuevaVentaForm() {
           <TableBody>
             {detalles.map((d) => (
               <TableRow key={d.producto_id}>
-                <TableCell className="text-sm">{d._nombre}</TableCell>
+                <TableCell className="text-sm">
+                  {d._nombre}
+                  {d._estado_producto && d._estado_producto !== "nuevo" && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({d._estado_producto === "tester" ? "Tester" : "Parcial"})
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right text-sm">
-                  ${d.precio_unitario.toFixed(2)}
+                  {formatMoney(d.precio_unitario)}
                 </TableCell>
                 <TableCell className="text-right text-sm">
                   {d.cantidad}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium">
-                  ${(d.cantidad * d.precio_unitario).toFixed(2)}
+                  {formatMoney(d.cantidad * d.precio_unitario)}
                 </TableCell>
               </TableRow>
             ))}
@@ -414,7 +438,7 @@ export function NuevaVentaForm() {
         </Table>
 
         <div className="flex justify-end">
-          <p className="text-lg font-bold">Total: ${total.toFixed(2)}</p>
+          <p className="text-lg font-bold">Total: {formatMoney(total)}</p>
         </div>
       </div>
     )

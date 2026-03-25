@@ -15,11 +15,16 @@ export type TipoMovimiento =
   | "SALIDA_MERMA"
   | "AJUSTE_POSITIVO"
   | "AJUSTE_NEGATIVO"
+  | "SALIDA_TESTER"
+  | "ENTRADA_CAMBIO"
 
 export type TipoVenta = "contado" | "credito"
 export type TipoPago = "efectivo" | "transferencia" | "retiro_sin_tarjeta"
 export type Periodicidad = "semanal" | "quincenal" | "mensual"
 export type EstadoCredito = "activo" | "liquidado"
+export type EstadoProducto = "nuevo" | "tester" | "parcial"
+export type EstadoVenta = "activa" | "cancelada"
+export type TipoDevolucion = "devolucion" | "cambio" | "anulacion"
 
 export interface Database {
   public: {
@@ -165,6 +170,9 @@ export interface Database {
           stock_minimo: number | null
           imagen_url: string | null
           activo: boolean
+          producto_origen_id: string | null
+          estado_producto: string
+          porcentaje_precio_parcial: number | null
           created_at: string
           updated_at: string
         }
@@ -188,6 +196,9 @@ export interface Database {
           stock_minimo?: number | null
           imagen_url?: string | null
           activo?: boolean
+          producto_origen_id?: string | null
+          estado_producto?: string
+          porcentaje_precio_parcial?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -211,6 +222,9 @@ export interface Database {
           stock_minimo?: number | null
           imagen_url?: string | null
           activo?: boolean
+          producto_origen_id?: string | null
+          estado_producto?: string
+          porcentaje_precio_parcial?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -515,6 +529,9 @@ export interface Database {
           entrega_despues_pago: boolean
           estado_credito: string | null
           meses_credito: number | null
+          estado_venta: string
+          motivo_cancelacion: string | null
+          fecha_cobro_especifica: string | null
           created_at: string
           updated_at: string
         }
@@ -531,6 +548,9 @@ export interface Database {
           entrega_despues_pago?: boolean
           estado_credito?: string | null
           meses_credito?: number | null
+          estado_venta?: string
+          motivo_cancelacion?: string | null
+          fecha_cobro_especifica?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -547,6 +567,9 @@ export interface Database {
           entrega_despues_pago?: boolean
           estado_credito?: string | null
           meses_credito?: number | null
+          estado_venta?: string
+          motivo_cancelacion?: string | null
+          fecha_cobro_especifica?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -585,6 +608,7 @@ export interface Database {
           monto: number
           tipo_pago: string
           cuenta_bancaria_id: string | null
+          referencia_devolucion_id: string | null
           vendedor_id: string
           cliente_id: string
           fecha: string
@@ -596,6 +620,7 @@ export interface Database {
           monto: number
           tipo_pago: string
           cuenta_bancaria_id?: string | null
+          referencia_devolucion_id?: string | null
           vendedor_id: string
           cliente_id: string
           fecha?: string
@@ -607,6 +632,7 @@ export interface Database {
           monto?: number
           tipo_pago?: string
           cuenta_bancaria_id?: string | null
+          referencia_devolucion_id?: string | null
           vendedor_id?: string
           cliente_id?: string
           fecha?: string
@@ -654,6 +680,179 @@ export interface Database {
           updated_at?: string
         }
       }
+      devoluciones: {
+        Row: {
+          id: string
+          venta_id: string
+          tipo: string
+          vendedor_id: string
+          cliente_id: string
+          fecha: string
+          monto_original: number
+          monto_nuevo: number | null
+          diferencia: number | null
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          venta_id: string
+          tipo: string
+          vendedor_id: string
+          cliente_id: string
+          fecha?: string
+          monto_original: number
+          monto_nuevo?: number | null
+          diferencia?: number | null
+          notas?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          venta_id?: string
+          tipo?: string
+          vendedor_id?: string
+          cliente_id?: string
+          fecha?: string
+          monto_original?: number
+          monto_nuevo?: number | null
+          diferencia?: number | null
+          notas?: string | null
+          created_at?: string
+        }
+      }
+      devoluciones_detalle: {
+        Row: {
+          id: string
+          devolucion_id: string
+          tipo: string
+          producto_id: string
+          cantidad: number
+          precio_unitario: number
+          subtotal: number
+          estado_producto_devuelto: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          devolucion_id: string
+          tipo: string
+          producto_id: string
+          cantidad: number
+          precio_unitario: number
+          estado_producto_devuelto?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          devolucion_id?: string
+          tipo?: string
+          producto_id?: string
+          cantidad?: number
+          precio_unitario?: number
+          estado_producto_devuelto?: string | null
+          created_at?: string
+        }
+      }
+      saldos_favor: {
+        Row: {
+          id: string
+          cliente_id: string
+          monto: number
+          monto_restante: number
+          origen: string
+          referencia_id: string
+          notas: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cliente_id: string
+          monto: number
+          monto_restante: number
+          origen: string
+          referencia_id: string
+          notas?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cliente_id?: string
+          monto?: number
+          monto_restante?: number
+          origen?: string
+          referencia_id?: string
+          notas?: string | null
+          created_at?: string
+        }
+      }
+      cobranza_seguimiento: {
+        Row: {
+          id: string
+          venta_id: string
+          periodo_inicio: string
+          periodo_fin: string
+          frecuencia: string
+          atendido: boolean
+          fecha_atendido: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          venta_id: string
+          periodo_inicio: string
+          periodo_fin: string
+          frecuencia: string
+          atendido?: boolean
+          fecha_atendido?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          venta_id?: string
+          periodo_inicio?: string
+          periodo_fin?: string
+          frecuencia?: string
+          atendido?: boolean
+          fecha_atendido?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      ventas_historial: {
+        Row: {
+          id: string
+          venta_id: string
+          tipo: string
+          usuario_id: string
+          datos_anteriores: Record<string, unknown> | null
+          datos_nuevos: Record<string, unknown> | null
+          motivo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          venta_id: string
+          tipo: string
+          usuario_id: string
+          datos_anteriores?: Record<string, unknown> | null
+          datos_nuevos?: Record<string, unknown> | null
+          motivo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          venta_id?: string
+          tipo?: string
+          usuario_id?: string
+          datos_anteriores?: Record<string, unknown> | null
+          datos_nuevos?: Record<string, unknown> | null
+          motivo?: string | null
+          created_at?: string
+        }
+      }
     }
     Enums: {
       tipo_movimiento: TipoMovimiento
@@ -691,3 +890,8 @@ export type Venta = Tables<"ventas">
 export type VentaDetalle = Tables<"ventas_detalle">
 export type Pago = Tables<"pagos">
 export type Gasto = Tables<"gastos">
+export type Devolucion = Tables<"devoluciones">
+export type DevolucionDetalle = Tables<"devoluciones_detalle">
+export type SaldoFavor = Tables<"saldos_favor">
+export type CobranzaSeguimiento = Tables<"cobranza_seguimiento">
+export type VentaHistorial = Tables<"ventas_historial">

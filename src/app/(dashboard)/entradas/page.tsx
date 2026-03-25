@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 
 export default function EntradasPage() {
   const { query } = useEntradas()
@@ -54,7 +55,7 @@ export default function EntradasPage() {
                     <TableCell>{e.proveedores?.nombre ?? "—"}</TableCell>
                     <TableCell className="hidden sm:table-cell">{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
                     <TableCell className="hidden sm:table-cell">{e.numero_factura ?? "—"}</TableCell>
-                    <TableCell className="text-right font-mono">${Number(e.total).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatMoney(Number(e.total))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

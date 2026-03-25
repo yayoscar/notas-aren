@@ -7,6 +7,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer"
+import { formatMoney } from "@/lib/utils"
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 10, fontFamily: "Helvetica" },
@@ -30,6 +31,9 @@ interface Props {
   totalCredito: number
   totalAbonado: number
   saldoRestante: number
+  saldoAnterior?: number
+  vendedorNombre?: string
+  fechaVenta?: string
 }
 
 export function AbonoTicketPDF({
@@ -41,6 +45,9 @@ export function AbonoTicketPDF({
   totalCredito,
   totalAbonado,
   saldoRestante,
+  saldoAnterior,
+  vendedorNombre,
+  fechaVenta,
 }: Props) {
   return (
     <Document>
@@ -56,6 +63,12 @@ export function AbonoTicketPDF({
           <Text style={styles.label}>Folio venta:</Text>
           <Text style={styles.bold}>{folio}</Text>
         </View>
+        {fechaVenta && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Fecha de venta:</Text>
+            <Text>{new Date(fechaVenta).toLocaleDateString("es-MX")}</Text>
+          </View>
+        )}
         <View style={styles.row}>
           <Text style={styles.label}>Cliente:</Text>
           <Text>{clienteNombre}</Text>
@@ -64,10 +77,16 @@ export function AbonoTicketPDF({
           <Text style={styles.label}>Fecha del abono:</Text>
           <Text>{new Date(fecha).toLocaleDateString("es-MX")}</Text>
         </View>
+        {vendedorNombre && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Atendió:</Text>
+            <Text>{vendedorNombre}</Text>
+          </View>
+        )}
 
         <View style={styles.divider} />
 
-        <Text style={styles.highlight}>${monto.toFixed(2)}</Text>
+        <Text style={styles.highlight}>{formatMoney(monto)}</Text>
 
         <View style={styles.row}>
           <Text style={styles.label}>Forma de pago:</Text>
@@ -82,17 +101,23 @@ export function AbonoTicketPDF({
 
         <View style={styles.divider} />
 
+        {saldoAnterior !== undefined && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Saldo anterior:</Text>
+            <Text>{formatMoney(saldoAnterior)}</Text>
+          </View>
+        )}
         <View style={styles.row}>
           <Text style={styles.label}>Total del crédito:</Text>
-          <Text>${totalCredito.toFixed(2)}</Text>
+          <Text>{formatMoney(totalCredito)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Total abonado:</Text>
-          <Text>${totalAbonado.toFixed(2)}</Text>
+          <Text>{formatMoney(totalAbonado)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Saldo restante:</Text>
-          <Text style={styles.bold}>${saldoRestante.toFixed(2)}</Text>
+          <Text style={styles.bold}>{formatMoney(saldoRestante)}</Text>
         </View>
 
         <View style={styles.footer}>

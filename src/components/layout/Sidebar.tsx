@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   Wallet,
   CalendarCheck,
+  HandCoins,
   Receipt,
   BarChart3,
 } from "lucide-react"
@@ -40,6 +41,7 @@ const allNavigation: NavItem[] = [
   { name: "Ventas", href: "/ventas", icon: ShoppingCart, adminOnly: false, group: "comercial" },
   { name: "Abonos", href: "/abonos", icon: Wallet, adminOnly: false, group: "comercial" },
   { name: "Seguimiento", href: "/seguimiento-pagos", icon: CalendarCheck, adminOnly: true, group: "comercial" },
+  { name: "Cobranza", href: "/seguimiento-cobranza", icon: HandCoins, adminOnly: true, group: "comercial" },
   { name: "Gastos", href: "/gastos", icon: Receipt, adminOnly: true, group: "comercial" },
   { name: "Reportes", href: "/reportes", icon: BarChart3, adminOnly: true, group: "comercial" },
 ]

@@ -12,8 +12,9 @@ export default function NuevoClientePage() {
   const { vendedor } = useVendedorActual()
 
   function handleSubmit(values: ClienteFormValues) {
+    const keepEmpty = new Set(["direccion", "referencia_ubicacion"])
     const cleaned = Object.fromEntries(
-      Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])
+      Object.entries(values).map(([k, v]) => [k, v === "" && !keepEmpty.has(k) ? null : v])
     ) as Record<string, unknown>
 
     // Auto-assign usuario_id from current vendedor

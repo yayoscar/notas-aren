@@ -9,12 +9,24 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Filter } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+type EstadoFilter = "todos" | "nuevo" | "tester" | "parcial"
 
 export default function InventarioPage() {
   const { query } = useProductos()
   const [search, setSearch] = useState("")
   const [stockBajoOnly, setStockBajoOnly] = useState(false)
+  const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("todos")
 
   const filtered = useMemo((): ProductoWithRelations[] => {
     if (!query.data) return []
@@ -34,8 +46,18 @@ export default function InventarioPage() {
       items = items.filter((p) => p.stock_actual <= (p.stock_minimo ?? 5))
     }
 
+    if (estadoFilter !== "todos") {
+      items = items.filter((p) => p.estado_producto === estadoFilter)
+    }
+
     return items
-  }, [query.data, search, stockBajoOnly])
+  }, [query.data, search, stockBajoOnly, estadoFilter])
+
+  const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+    nuevo: { label: "Nuevo", variant: "default" },
+    tester: { label: "Tester", variant: "secondary" },
+    parcial: { label: "Parcial", variant: "outline" },
+  }
 
   return (
     <div className="space-y-4">
@@ -61,6 +83,20 @@ export default function InventarioPage() {
                 className="pl-10"
               />
             </div>
+            <Select
+              value={estadoFilter}
+              onValueChange={(v) => setEstadoFilter(v as EstadoFilter)}
+            >
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="nuevo">Nuevos</SelectItem>
+                <SelectItem value="tester">Testers</SelectItem>
+                <SelectItem value="parcial">Parciales</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant={stockBajoOnly ? "default" : "outline"}
               onClick={() => setStockBajoOnly(!stockBajoOnly)}
@@ -104,15 +140,25 @@ export default function InventarioPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/inventario/${p.id}`} className="font-medium hover:underline">
-                        {p.nombre}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/inventario/${p.id}`} className="font-medium hover:underline">
+                          {p.nombre}
+                        </Link>
+                        {p.estado_producto && p.estado_producto !== "nuevo" && (
+                          <Badge variant={ESTADO_BADGE[p.estado_producto]?.variant ?? "outline"} className="text-xs">
+                            {ESTADO_BADGE[p.estado_producto]?.label ?? p.estado_producto}
+                          </Badge>
+                        )}
+                        {p.producto_origen_id && (
+                          <span className="text-xs text-muted-foreground">↳ derivado</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{p.marca}</TableCell>
                     <TableCell className="hidden lg:table-cell">{p.cat_genero?.nombre ?? "—"}</TableCell>
                     <TableCell className="hidden lg:table-cell">{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
-                    <TableCell className="text-right">${Number(p.precio_venta_contado).toFixed(2)}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-right">${Number(p.precio_venta_credito).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(Number(p.precio_venta_contado))}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-right">{formatMoney(Number(p.precio_venta_credito))}</TableCell>
                     <TableCell className="text-center">
                       <StockBadge stockActual={p.stock_actual} stockMinimo={p.stock_minimo} />
                     </TableCell>

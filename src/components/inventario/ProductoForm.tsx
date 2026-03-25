@@ -1,10 +1,12 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { productoSchema, type ProductoFormValues } from "@/lib/validations/producto.schema"
 import { useCatalogo } from "@/hooks/useCatalogos"
 import { useProveedores } from "@/hooks/useProveedores"
+import { useMarcas } from "@/hooks/useMarcas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,10 +59,23 @@ export function ProductoForm({ producto, onSubmit, isPending }: Props) {
   const concentraciones = useCatalogo("cat_concentracion")
   const tipos = useCatalogo("cat_tipo_perfume")
   const proveedores = useProveedores()
+  const marcasQuery = useMarcas()
+
+  const [searchMarca, setSearchMarca] = useState(producto?.marca ?? "")
+  const [showMarcas, setShowMarcas] = useState(false)
+
+  const filteredMarcas = useMemo(() => {
+    if (!marcasQuery.data || !searchMarca) return []
+    const s = searchMarca.toLowerCase()
+    return marcasQuery.data
+      .filter((m) => m.toLowerCase().includes(s))
+      .slice(0, 10)
+  }, [marcasQuery.data, searchMarca])
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ProductoFormValues>({
     resolver: zodResolver(productoSchema),
@@ -92,9 +107,41 @@ export function ProductoForm({ producto, onSubmit, isPending }: Props) {
               <Input id="nombre" {...register("nombre")} placeholder="Nombre del perfume" />
               {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="marca">Marca *</Label>
-              <Input id="marca" {...register("marca")} placeholder="Marca" />
+              <Input
+                id="marca"
+                placeholder="Marca"
+                value={searchMarca}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSearchMarca(val)
+                  setValue("marca", val)
+                  setShowMarcas(true)
+                }}
+                onFocus={() => setShowMarcas(true)}
+                onBlur={() => setTimeout(() => setShowMarcas(false), 150)}
+                autoComplete="off"
+              />
+              {showMarcas && filteredMarcas.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-lg max-h-60 overflow-y-auto">
+                  {filteredMarcas.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary transition-colors border-b last:border-b-0"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setValue("marca", m)
+                        setSearchMarca(m)
+                        setShowMarcas(false)
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               {errors.marca && <p className="text-sm text-destructive">{errors.marca.message}</p>}
             </div>
             <div className="space-y-2">

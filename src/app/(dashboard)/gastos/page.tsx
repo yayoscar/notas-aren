@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search } from "lucide-react"
+import { formatMoney } from "@/lib/utils"
 
 export default function GastosPage() {
   const { query } = useGastos()
@@ -101,7 +102,7 @@ export default function GastosPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${g.monto.toFixed(2)}
+                      {formatMoney(g.monto)}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       {g.tipo_pago === "efectivo"

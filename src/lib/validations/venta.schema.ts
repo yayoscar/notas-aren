@@ -2,12 +2,16 @@ import { z } from "zod"
 
 export const ventaDetalleSchema = z.object({
   producto_id: z.string().uuid("Selecciona un producto"),
-  precio_unitario: z.coerce.number().min(0.01, "Precio requerido"),
+  precio_unitario: z.coerce.number().min(0, "Precio no puede ser negativo"),
   cantidad: z.coerce.number().int().min(1, "Mínimo 1"),
   // Campos auxiliares (no se envían a la BD)
   _nombre: z.string().optional(),
+  _marca: z.string().optional(),
+  _genero: z.string().optional(),
+  _sku: z.string().nullable().optional(),
   _stock_actual: z.number().optional(),
   _precio_minimo: z.number().optional(),
+  _estado_producto: z.string().optional(),
 })
 
 export const pagoInlineSchema = z.object({
@@ -106,3 +110,33 @@ export const ventaSchema = ventaBaseSchema.superRefine((data, ctx) => {
 
 export type VentaFormValues = z.infer<typeof ventaBaseSchema>
 export type VentaDetalleValues = z.infer<typeof ventaDetalleSchema>
+
+// Schema para edición de ventas
+const ventaEditBaseSchema = z.object({
+  venta_id: z.string().uuid(),
+  detalles: z
+    .array(ventaDetalleSchema)
+    .min(1, "Agrega al menos un producto"),
+  motivo_edicion: z.string().min(1, "El motivo de edición es requerido"),
+  // Total ya pagado (para validación en créditos)
+  _total_pagado: z.number().optional(),
+})
+
+export const ventaEditSchema = ventaEditBaseSchema.superRefine((data, ctx) => {
+  // Si hay pagos, el nuevo total no puede ser menor que lo pagado
+  if (data._total_pagado && data._total_pagado > 0) {
+    const nuevoTotal = data.detalles.reduce(
+      (sum, d) => sum + d.precio_unitario * d.cantidad,
+      0
+    )
+    if (nuevoTotal < data._total_pagado) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `El nuevo total no puede ser menor que lo ya pagado ($${data._total_pagado.toFixed(2)})`,
+        path: ["detalles"],
+      })
+    }
+  }
+})
+
+export type VentaEditFormValues = z.infer<typeof ventaEditBaseSchema>
