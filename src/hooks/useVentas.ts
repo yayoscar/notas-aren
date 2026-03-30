@@ -11,7 +11,7 @@ export type VentaWithRelations = Venta & {
 }
 
 export type VentaDetalleWithProducto = VentaDetalle & {
-  productos: { nombre: string; sku: string; estado_producto: string } | null
+  productos: { nombre: string; sku: string; estado_producto: string; precio_venta_contado: number | null; precio_venta_credito: number | null; producto_origen_id: string | null } | null
 }
 
 export type PagoWithCuenta = Pago & {

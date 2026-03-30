@@ -262,6 +262,7 @@ export function NuevaVentaForm() {
     setPorcentajeParcial(50)
     setPrecioParcial("")
     setErrorParcial("")
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingParcial, precioParcial, tipoVenta])
 
   const pagoMontoActual = tipoVenta === "contado" ? total : pagoMonto

@@ -175,6 +175,7 @@ export default function NuevaEntradaPage() {
         setPriceDecisions(new Map())
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [detalles, productos.query.data]
   )
 

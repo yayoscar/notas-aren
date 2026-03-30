@@ -137,12 +137,16 @@ export default function CreditoDetallePage() {
   }
 
   async function handleSharePDF() {
-    const blob = await pdf(buildTablaPagosElement()).toBlob()
+    const el = buildTablaPagosElement()
+    if (!el) return
+    const blob = await pdf(el).toBlob()
     await sharePDF(blob, `tabla-pagos-credito-${clienteNombre}.pdf`, `Tabla de pagos — ${clienteNombre}`)
   }
 
   async function handleDownloadPDF() {
-    const blob = await pdf(buildTablaPagosElement()).toBlob()
+    const el = buildTablaPagosElement()
+    if (!el) return
+    const blob = await pdf(el).toBlob()
     await downloadPDF(blob, `tabla-pagos-credito-${clienteNombre}.pdf`)
   }
 
