@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import type { Venta, Pago } from "@/lib/supabase/types"
+import type { Pago } from "@/lib/supabase/types"
 import { toast } from "sonner"
 
 export type CreditoConSaldo = {

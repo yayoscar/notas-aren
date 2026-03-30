@@ -120,6 +120,7 @@ export default function CreditoDetallePage() {
   } : null
 
   function buildTablaPagosElement() {
+    if (!linea) return null
     return (
       <TablaPagosPDF
         folio={`LC-${lineaId.slice(0, 8)}`}

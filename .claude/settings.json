@@ -8,7 +8,8 @@
       "Bash(npx supabase:*)",
       "Bash(npm install:*)",
       "Bash(ls /media/Files/Repos/notas-aren/src/app/\\\\\\(dashboard\\\\\\)/)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx vercel:*)"
     ],
     "additionalDirectories": [
       "/media/Files/Repos/notas-aren/src/app/(dashboard)/clientes",

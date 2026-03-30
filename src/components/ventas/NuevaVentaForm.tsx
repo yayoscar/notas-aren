@@ -112,7 +112,7 @@ export function NuevaVentaForm() {
   }, [lineaActiva])
 
   // Parcial percentage
-  const [pendingParcial, setPendingParcial] = useState<{ producto: any; preciosPadre: { contado: number; credito: number } } | null>(null)
+  const [pendingParcial, setPendingParcial] = useState<{ producto: Producto & Record<string, unknown>; preciosPadre: { contado: number; credito: number } } | null>(null)
   const [pendingTipoVenta, setPendingTipoVenta] = useState<TipoVenta | null>(null)
   const [porcentajeParcial, setPorcentajeParcial] = useState(50)
   const [precioParcial, setPrecioParcial] = useState<number | string>("")
