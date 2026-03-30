@@ -29,20 +29,23 @@ const devolucionBaseSchema = z.object({
     .enum(["efectivo", "abono_credito", "ajuste_plan"])
     .nullable()
     .optional(),
+  // Nuevos campos para devoluciones de credito
+  tiene_credito_activo_previo: z.boolean().optional(),
+  opcion_diferencia: z.enum(["contado", "ajuste_credito"]).optional(),
+  dias_limite: z.number().optional(), // parametro dinamico desde configuracion
 })
 
-export const devolucionSchema = devolucionBaseSchema.superRefine(
-  (data, ctx) => {
-    // Validar política de 7 días
+export function createDevolucionSchema(diasLimite: number = 7) {
+  return devolucionBaseSchema.superRefine((data, ctx) => {
+    // Validar politica de dias (configurable)
     const fechaVenta = new Date(data.fecha_venta)
     const fechaHoy = new Date(data.fecha)
     const diffMs = fechaHoy.getTime() - fechaVenta.getTime()
     const diffDias = diffMs / (1000 * 60 * 60 * 24)
-    if (diffDias > 7) {
+    if (diffDias > diasLimite) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "Solo se permiten devoluciones dentro de los 7 días posteriores a la fecha de venta",
+        message: `Solo se permiten devoluciones dentro de los ${diasLimite} días posteriores a la fecha de venta`,
         path: ["fecha_venta"],
       })
     }
@@ -94,8 +97,11 @@ export const devolucionSchema = devolucionBaseSchema.superRefine(
         }
       }
     })
-  }
-)
+  })
+}
+
+// Schema por defecto (7 dias) para compatibilidad
+export const devolucionSchema = createDevolucionSchema(7)
 
 export type DevolucionFormValues = z.infer<typeof devolucionBaseSchema>
 export type ProductoDevueltoValues = z.infer<typeof productoDevueltoSchema>

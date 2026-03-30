@@ -5,6 +5,7 @@ import { useConfigValue, useUpdateConfigValue } from "@/hooks/useConfiguracion"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Save } from "lucide-react"
@@ -12,13 +13,19 @@ import { Save } from "lucide-react"
 export default function ConfiguracionPage() {
   const { isAdmin, isLoading: isLoadingVendedor } = useVendedorActual()
   const { data: mensajeActual, isLoading: isLoadingConfig } = useConfigValue("recordatorio_whatsapp")
+  const { data: diasLimiteActual, isLoading: isLoadingDias } = useConfigValue("dias_limite_devolucion")
   const updateConfig = useUpdateConfigValue()
 
   const [mensaje, setMensaje] = useState("")
+  const [diasLimite, setDiasLimite] = useState("7")
 
   useEffect(() => {
     if (mensajeActual) setMensaje(mensajeActual)
   }, [mensajeActual])
+
+  useEffect(() => {
+    if (diasLimiteActual) setDiasLimite(diasLimiteActual)
+  }, [diasLimiteActual])
 
   if (isLoadingVendedor) {
     return (
@@ -72,6 +79,42 @@ export default function ConfiguracionPage() {
               </p>
               <div className="flex justify-end">
                 <Button onClick={handleGuardar} disabled={updateConfig.isPending || mensaje === mensajeActual}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateConfig.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Devoluciones</CardTitle>
+          <CardDescription>
+            Limite de dias para aceptar devoluciones despues de la fecha de venta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingDias ? (
+            <Skeleton className="h-10 w-full" />
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={diasLimite}
+                  onChange={(e) => setDiasLimite(e.target.value)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">dias despues de la venta</span>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => updateConfig.mutate({ key: "dias_limite_devolucion", value: diasLimite })}
+                  disabled={updateConfig.isPending || diasLimite === (diasLimiteActual ?? "7")}
+                >
                   <Save className="mr-2 h-4 w-4" />
                   {updateConfig.isPending ? "Guardando..." : "Guardar"}
                 </Button>

@@ -3,7 +3,9 @@
 import { useState, useMemo } from "react"
 import { type VentaFullDetail } from "@/hooks/useVentas"
 import { useDevolucionUnificada } from "@/hooks/useDevolucionUnificada"
-import { useLineaCreditoCliente } from "@/hooks/useLineaCredito"
+import { useLineaCreditoCliente, useVentasDeLinea } from "@/hooks/useLineaCredito"
+import { useConfigValue } from "@/hooks/useConfiguracion"
+import { recalcularCuotasCredito } from "@/lib/calculos/credito"
 import { AbonoCobranzaDialog } from "@/components/cobranza/AbonoCobranzaDialog"
 import { DevolucionTicketPDF } from "@/components/ventas/DevolucionTicketPDF"
 import {
@@ -52,11 +54,10 @@ interface ProductoDevuelto {
   estado_devuelto: "nuevo" | "segunda" | "parcial"
   precio_original: number
   precio_depreciado: number
-  porcentaje: number // percentage for segunda/parcial (1-100)
+  porcentaje: number
   seleccionado: boolean
-  // Info de la compra original
-  estado_compra: string // "nuevo" | "segunda" | "parcial"
-  porcentaje_compra: number | null // % aplicado en la compra, null si fue nuevo/100%
+  estado_compra: string
+  porcentaje_compra: number | null
 }
 
 type Paso = 1 | 2 | 3
@@ -69,12 +70,26 @@ export function DevolucionUnificadaDialog({
 }: Props) {
   const mutation = useDevolucionUnificada()
   const { data: lineaActiva } = useLineaCreditoCliente(venta.cliente_id)
+  const { data: diasLimiteStr } = useConfigValue("dias_limite_devolucion")
+  const diasLimite = parseInt(diasLimiteStr ?? "7", 10) || 7
+
+  // Detectar credito activo previo: la linea tiene mas ventas ademas de esta
+  const { data: ventasDeLinea } = useVentasDeLinea(
+    venta.tipo_venta === "credito" && lineaActiva ? lineaActiva.id : ""
+  )
+  const tieneCreditoActivoPrevio = useMemo(() => {
+    if (venta.tipo_venta !== "credito" || !ventasDeLinea) return false
+    const ventasActivas = ventasDeLinea.filter(
+      (v: { id: string }) => v.id !== venta.id
+    )
+    return ventasActivas.length > 0
+  }, [ventasDeLinea, venta.id, venta.tipo_venta])
 
   // State
   const [paso, setPaso] = useState<Paso>(1)
   const [motivo, setMotivo] = useState("")
   const [destinoMonto, setDestinoMonto] = useState<"efectivo" | "abono_credito" | "ajuste_plan" | null>(null)
-  const [opcionAjuste, setOpcionAjuste] = useState<"reducir_periodos" | "reducir_cuotas" | "adelanto">("reducir_periodos")
+  const [opcionDiferencia, setOpcionDiferencia] = useState<"contado" | "ajuste_credito">("contado")
   const [showAbonoDialog, setShowAbonoDialog] = useState(false)
   const [resultadoExitoso, setResultadoExitoso] = useState<{
     tipo: string
@@ -110,11 +125,11 @@ export function DevolucionUnificadaDialog({
       })
   )
 
-  // Validacion de 7 dias
+  // Validacion de dias configurable
   const fechaVenta = new Date(venta.fecha)
   const hoy = new Date()
   const diffDias = (hoy.getTime() - fechaVenta.getTime()) / (1000 * 60 * 60 * 24)
-  const dentroDelPlazo = diffDias <= 7
+  const dentroDelPlazo = diffDias <= diasLimite
 
   // Calculos
   const productosSeleccionados = productosDevueltos.filter((p) => p.seleccionado)
@@ -140,31 +155,40 @@ export function DevolucionUnificadaDialog({
     )
   }, [productosSeleccionados, venta.ventas_detalle])
 
-  // Adjustment preview calculation (for credit ventas)
+  // Hay articulos deteriorados?
+  const tieneDeterioro = productosSeleccionados.some(
+    (p) => p.estado_devuelto !== "nuevo"
+  )
+
+  // Diferencia por deterioro (monto_venta_original - monto_devolucion)
+  const montoVentaOriginal = productosSeleccionados.reduce(
+    (sum, p) => sum + p.precio_original * p.cantidad, 0
+  )
+  const diferenciaPorDeterioro = montoVentaOriginal - montoDevuelto
+
+  // Preview de cuotas para credito (solo Option B: mismos plazos, cuotas reducidas)
   const ajustePreview = useMemo(() => {
     if (!lineaActiva || montoDevuelto <= 0) return null
 
-    const nuevoSaldo = (lineaActiva.saldo_total - montoDevuelto) - lineaActiva.saldo_pagado
-    if (nuevoSaldo <= 0) return null
+    const resultado = recalcularCuotasCredito({
+      saldoTotal: lineaActiva.saldo_total,
+      saldoPagado: lineaActiva.saldo_pagado,
+      montoDevolucion: montoDevuelto,
+      mesesCredito: lineaActiva.meses_credito,
+      periodicidad: lineaActiva.periodicidad as "semanal" | "quincenal" | "mensual",
+    })
+
+    if (resultado.nuevoSaldo <= 0) return null
 
     const factor = lineaActiva.periodicidad === "semanal" ? 4 : lineaActiva.periodicidad === "quincenal" ? 2 : 1
     const periodosActuales = lineaActiva.meses_credito * factor
     const cuotaActual = Math.ceil(((lineaActiva.saldo_total - lineaActiva.saldo_pagado) / periodosActuales) * 100) / 100
 
-    // Option A: reduce periods
-    const nuevosPeriodosA = Math.max(1, Math.ceil(nuevoSaldo / cuotaActual))
-    const nuevaCuotaA = Math.ceil((nuevoSaldo / nuevosPeriodosA) * 100) / 100
-    const nuevosMesesA = Math.max(1, Math.ceil(nuevosPeriodosA / factor))
-
-    // Option B: reduce cuotas
-    const nuevaCuotaB = Math.ceil((nuevoSaldo / periodosActuales) * 100) / 100
-
     return {
-      nuevoSaldo,
+      nuevoSaldo: resultado.nuevoSaldo,
       cuotaActual,
       periodosActuales,
-      opcionA: { periodos: nuevosPeriodosA, cuota: nuevaCuotaA, meses: nuevosMesesA },
-      opcionB: { periodos: periodosActuales, cuota: nuevaCuotaB, meses: lineaActiva.meses_credito },
+      nuevaCuota: resultado.nuevaCuota,
     }
   }, [lineaActiva, montoDevuelto])
 
@@ -190,8 +214,6 @@ export function DevolucionUnificadaDialog({
       prev.map((p, i) => {
         if (i !== index) return p
         const updated = { ...p, ...field }
-        // Recalculate precio_depreciado from porcentaje ONLY if precio_depreciado
-        // was NOT explicitly set in this update (avoid overwriting manual price input)
         const precioSetManually = field.precio_depreciado !== undefined
         if (
           !precioSetManually &&
@@ -218,17 +240,6 @@ export function DevolucionUnificadaDialog({
   }
 
   async function handleConfirmar() {
-    // Calculate meses for ajuste_plan
-    let mesesCredito = lineaActiva?.meses_credito ?? 1
-    if (destinoMonto === "ajuste_plan" && ajustePreview && lineaActiva) {
-      if (opcionAjuste === "reducir_periodos") {
-        mesesCredito = ajustePreview.opcionA.meses
-      } else if (opcionAjuste === "reducir_cuotas") {
-        mesesCredito = ajustePreview.opcionB.meses
-      }
-      // adelanto: keep same meses
-    }
-
     mutation.mutate(
       {
         venta_id: venta.id,
@@ -245,12 +256,20 @@ export function DevolucionUnificadaDialog({
           precio_depreciado: p.estado_devuelto !== "nuevo" ? p.precio_depreciado : undefined,
           porcentaje_parcial: p.estado_devuelto === "parcial" ? p.porcentaje : undefined,
         })),
-        destino_monto: destinoMonto,
+        destino_monto:
+          tipoVentaOriginal === "credito"
+            ? "ajuste_plan" // credito siempre ajusta automaticamente
+            : destinoMonto,
         tipo_venta_original: tipoVentaOriginal,
+        tiene_credito_activo_previo: tieneCreditoActivoPrevio,
+        opcion_diferencia:
+          tipoVentaOriginal === "credito" && !tieneCreditoActivoPrevio && diferenciaPorDeterioro > 0
+            ? opcionDiferencia
+            : undefined,
         ajuste_plan:
-          destinoMonto === "ajuste_plan" && lineaActiva
+          tipoVentaOriginal === "contado" && destinoMonto === "ajuste_plan" && lineaActiva
             ? {
-                meses_credito: mesesCredito,
+                meses_credito: lineaActiva.meses_credito,
                 periodicidad: lineaActiva.periodicidad,
                 fecha_siguiente_pago: lineaActiva.fecha_siguiente_pago ?? "",
               }
@@ -258,8 +277,7 @@ export function DevolucionUnificadaDialog({
       },
       {
         onSuccess: (data) => {
-          if (destinoMonto === "abono_credito" && lineaActiva) {
-            // For contado + credit: show abono dialog
+          if (tipoVentaOriginal === "contado" && destinoMonto === "abono_credito" && lineaActiva) {
             setResultadoExitoso(data)
             setShowAbonoDialog(true)
           } else {
@@ -353,7 +371,7 @@ export function DevolucionUnificadaDialog({
     setPaso(1)
     setMotivo("")
     setDestinoMonto(null)
-    setOpcionAjuste("reducir_periodos")
+    setOpcionDiferencia("contado")
     setShowAbonoDialog(false)
     setResultadoExitoso(null)
     setProductosDevueltos(
@@ -392,7 +410,6 @@ export function DevolucionUnificadaDialog({
         onOpenChange={(open) => {
           if (!open) {
             setShowAbonoDialog(false)
-            // After closing abono dialog, show success
           }
         }}
       />
@@ -462,7 +479,7 @@ export function DevolucionUnificadaDialog({
         {!dentroDelPlazo && (
           <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Fuera del plazo de 7 dias. No se puede procesar.
+            Fuera del plazo de {diasLimite} dias. No se puede procesar.
           </div>
         )}
 
@@ -503,7 +520,7 @@ export function DevolucionUnificadaDialog({
                   </div>
                 </div>
 
-                {/* Product cards (responsive) */}
+                {/* Product cards */}
                 <div className="space-y-2">
                   {productosDevueltos.map((p, i) => {
                     const subtotal = getSubtotal(p)
@@ -513,7 +530,6 @@ export function DevolucionUnificadaDialog({
                         key={p.producto_id}
                         className={`rounded-lg border p-3 space-y-2 ${!p.seleccionado ? "opacity-50" : ""}`}
                       >
-                        {/* Row 1: Checkbox + name */}
                         <div className="flex items-center gap-2">
                           <Checkbox
                             checked={p.seleccionado}
@@ -535,7 +551,6 @@ export function DevolucionUnificadaDialog({
                           </span>
                         </div>
 
-                        {/* Row 2: Quantity + Estado */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="flex items-center gap-1">
                             <Label className="text-xs text-muted-foreground">Cant:</Label>
@@ -574,7 +589,6 @@ export function DevolucionUnificadaDialog({
                           </Select>
                         </div>
 
-                        {/* Row 3: Percentage slider + price input for segunda/parcial */}
                         {(p.estado_devuelto === "segunda" || p.estado_devuelto === "parcial") && p.seleccionado && (
                           <div className="space-y-1.5 pl-6">
                             <div className="flex items-center gap-2">
@@ -628,7 +642,6 @@ export function DevolucionUnificadaDialog({
                           </div>
                         )}
 
-                        {/* Row 4: Subtotal */}
                         <div className="text-right text-sm">
                           Subtotal:{" "}
                           <span className="font-mono">
@@ -648,7 +661,6 @@ export function DevolucionUnificadaDialog({
                   <p className="font-medium">Total: {formatMoney(montoDevuelto)}</p>
                 </div>
 
-                {/* Navigation */}
                 <div className="flex justify-end">
                   <Button
                     onClick={() => setPaso(2)}
@@ -667,7 +679,7 @@ export function DevolucionUnificadaDialog({
             {/* ============================================================ */}
             {paso === 2 && (
               <div className="space-y-4">
-                <h3 className="font-medium">Destino del monto</h3>
+                <h3 className="font-medium">Resumen del ajuste</h3>
 
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-center mb-2">
@@ -687,6 +699,17 @@ export function DevolucionUnificadaDialog({
                     </div>
                   )}
                 </div>
+
+                {/* Badge de tipo de credito */}
+                {tipoVentaOriginal === "credito" && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant={tieneCreditoActivoPrevio ? "default" : "secondary"}>
+                      {tieneCreditoActivoPrevio ? "Credito compartido" : "Credito independiente"}
+                    </Badge>
+                    {esAnulacion && <Badge variant="destructive">Anulacion</Badge>}
+                    {!esAnulacion && <Badge variant="outline">Devolucion parcial</Badge>}
+                  </div>
+                )}
 
                 {/* CONTADO + NO credit line */}
                 {tipoVentaOriginal === "contado" && !lineaActiva && (
@@ -754,36 +777,53 @@ export function DevolucionUnificadaDialog({
                   </div>
                 )}
 
-                {/* CREDITO */}
+                {/* CREDITO — Logica automatica segun reglas */}
                 {tipoVentaOriginal === "credito" && (
                   <div className="space-y-3">
-                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
-                      El monto se ajustara en el saldo del credito.
-                    </div>
+                    {/* Resumen automatico segun caso */}
+                    {esAnulacion && !tieneCreditoActivoPrevio && (
+                      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200 space-y-1">
+                        <p>La venta se cancelara y el credito se liquidara.</p>
+                        {(venta.pagos ?? []).reduce((s, pg) => s + pg.monto, 0) > 0 && (
+                          <p>Los abonos realizados ({formatMoney((venta.pagos ?? []).reduce((s, pg) => s + pg.monto, 0))}) se reembolsaran en efectivo.</p>
+                        )}
+                      </div>
+                    )}
 
-                    {ajustePreview && lineaActiva && (() => {
-                      // Ensure destinoMonto is set to ajuste_plan for credit
-                      if (destinoMonto !== "ajuste_plan") {
-                        // Use a timeout to avoid state updates during render
-                        setTimeout(() => setDestinoMonto("ajuste_plan"), 0)
-                      }
-                      return null
-                    })()}
+                    {esAnulacion && tieneCreditoActivoPrevio && (
+                      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200 space-y-1">
+                        <p>La venta se cancelara. Se abonara {formatMoney(montoDevuelto)} al credito activo.</p>
+                        {(venta.pagos ?? []).reduce((s, pg) => s + pg.monto, 0) > 0 && (
+                          <p>Los abonos realizados ({formatMoney((venta.pagos ?? []).reduce((s, pg) => s + pg.monto, 0))}) se reembolsaran en efectivo.</p>
+                        )}
+                      </div>
+                    )}
 
-                    {ajustePreview && lineaActiva && (
+                    {!esAnulacion && (
+                      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200 space-y-1">
+                        <p>La venta continua activa. Se ajustan las cuotas del credito.</p>
+                        {ajustePreview && (
+                          <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.nuevaCuota)} (mismos plazos)</p>
+                        )}
+                        {!ajustePreview && lineaActiva && (
+                          <p>El descuento liquida el saldo restante del credito.</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Opcion de diferencia por deterioro (solo Grupo 1, con diferencia > 0) */}
+                    {tieneDeterioro && diferenciaPorDeterioro > 0 && !tieneCreditoActivoPrevio && (
                       <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          Selecciona como ajustar el plan de pagos:
+                        <p className="text-sm font-medium">
+                          Diferencia por deterioro: {formatMoney(diferenciaPorDeterioro)}
                         </p>
-
-                        {/* Option A: Reducir periodos */}
+                        <p className="text-xs text-muted-foreground">
+                          Los articulos regresan con menor valor. Como se maneja la diferencia?
+                        </p>
                         <div
-                          onClick={() => {
-                            setDestinoMonto("ajuste_plan")
-                            setOpcionAjuste("reducir_periodos")
-                          }}
+                          onClick={() => setOpcionDiferencia("contado")}
                           className={`rounded-lg border p-3 cursor-pointer transition-colors ${
-                            opcionAjuste === "reducir_periodos"
+                            opcionDiferencia === "contado"
                               ? "border-primary bg-primary/5"
                               : "hover:border-muted-foreground/30"
                           }`}
@@ -791,30 +831,23 @@ export function DevolucionUnificadaDialog({
                           <div className="flex items-center gap-2">
                             <div
                               className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                                opcionAjuste === "reducir_periodos" ? "border-primary" : "border-muted-foreground/30"
+                                opcionDiferencia === "contado" ? "border-primary" : "border-muted-foreground/30"
                               }`}
                             >
-                              {opcionAjuste === "reducir_periodos" && (
+                              {opcionDiferencia === "contado" && (
                                 <div className="h-2 w-2 rounded-full bg-primary" />
                               )}
                             </div>
-                            <span className="font-medium text-sm">Reducir periodos</span>
+                            <span className="font-medium text-sm">Cobrar diferencia de contado</span>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1 pl-6 space-y-0.5">
-                            <p>Periodos: {ajustePreview.periodosActuales} → {ajustePreview.opcionA.periodos}</p>
-                            <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.opcionA.cuota)}</p>
-                            <p>Meses: {lineaActiva.meses_credito} → {ajustePreview.opcionA.meses}</p>
-                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 pl-6">
+                            El cliente paga {formatMoney(diferenciaPorDeterioro)} en efectivo.
+                          </p>
                         </div>
-
-                        {/* Option B: Reducir cuotas */}
                         <div
-                          onClick={() => {
-                            setDestinoMonto("ajuste_plan")
-                            setOpcionAjuste("reducir_cuotas")
-                          }}
+                          onClick={() => setOpcionDiferencia("ajuste_credito")}
                           className={`rounded-lg border p-3 cursor-pointer transition-colors ${
-                            opcionAjuste === "reducir_cuotas"
+                            opcionDiferencia === "ajuste_credito"
                               ? "border-primary bg-primary/5"
                               : "hover:border-muted-foreground/30"
                           }`}
@@ -822,62 +855,25 @@ export function DevolucionUnificadaDialog({
                           <div className="flex items-center gap-2">
                             <div
                               className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                                opcionAjuste === "reducir_cuotas" ? "border-primary" : "border-muted-foreground/30"
+                                opcionDiferencia === "ajuste_credito" ? "border-primary" : "border-muted-foreground/30"
                               }`}
                             >
-                              {opcionAjuste === "reducir_cuotas" && (
+                              {opcionDiferencia === "ajuste_credito" && (
                                 <div className="h-2 w-2 rounded-full bg-primary" />
                               )}
                             </div>
-                            <span className="font-medium text-sm">Reducir cuotas</span>
+                            <span className="font-medium text-sm">Ajustar al credito</span>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1 pl-6 space-y-0.5">
-                            <p>Periodos: {ajustePreview.opcionB.periodos} (sin cambio)</p>
-                            <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.opcionB.cuota)}</p>
-                          </div>
-                        </div>
-
-                        {/* Option C: Adelanto */}
-                        <div
-                          onClick={() => {
-                            setDestinoMonto("ajuste_plan")
-                            setOpcionAjuste("adelanto")
-                          }}
-                          className={`rounded-lg border p-3 cursor-pointer transition-colors ${
-                            opcionAjuste === "adelanto"
-                              ? "border-primary bg-primary/5"
-                              : "hover:border-muted-foreground/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
-                                opcionAjuste === "adelanto" ? "border-primary" : "border-muted-foreground/30"
-                              }`}
-                            >
-                              {opcionAjuste === "adelanto" && (
-                                <div className="h-2 w-2 rounded-full bg-primary" />
-                              )}
-                            </div>
-                            <span className="font-medium text-sm">Adelanto</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 pl-6 space-y-0.5">
-                            <p>Se descuenta del saldo sin cambiar el plan.</p>
-                            <p>Nuevo saldo: {formatMoney(ajustePreview.nuevoSaldo)}</p>
-                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 pl-6">
+                            La diferencia queda como saldo pendiente en el credito.
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {!ajustePreview && lineaActiva && (
-                      <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                        El descuento liquida el saldo restante del credito. No se requiere ajuste de plan.
-                      </div>
-                    )}
-
-                    {!lineaActiva && (
-                      <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                        No se encontro una linea de credito activa. El monto se ajustara sobre la venta.
+                    {tieneDeterioro && diferenciaPorDeterioro > 0 && tieneCreditoActivoPrevio && (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        Diferencia por deterioro: {formatMoney(diferenciaPorDeterioro)}. Esta diferencia queda como saldo en el credito activo.
                       </div>
                     )}
                   </div>
@@ -947,35 +943,32 @@ export function DevolucionUnificadaDialog({
                     <p>
                       <strong>Destino:</strong>{" "}
                       {tipoVentaOriginal === "credito"
-                        ? opcionAjuste === "reducir_periodos"
-                          ? "Ajuste de credito (reducir periodos)"
-                          : opcionAjuste === "reducir_cuotas"
-                            ? "Ajuste de credito (reducir cuotas)"
-                            : "Ajuste de credito (adelanto)"
+                        ? tieneCreditoActivoPrevio
+                          ? "Abono al credito activo"
+                          : esAnulacion
+                            ? "Cancelar credito"
+                            : "Ajuste de cuotas (mismos plazos)"
                         : destinoMonto === "abono_credito"
                           ? "Abonar al credito activo"
                           : "Devolucion en efectivo"}
                     </p>
                   </div>
 
-                  {/* Adjustment preview */}
+                  {/* Adjustment preview for credit */}
                   {tipoVentaOriginal === "credito" && ajustePreview && (
                     <div className="border-t pt-1 mt-1 text-xs space-y-0.5">
                       <p className="font-medium text-muted-foreground uppercase">Vista previa del ajuste</p>
-                      {opcionAjuste === "reducir_periodos" && (
-                        <>
-                          <p>Periodos: {ajustePreview.periodosActuales} → {ajustePreview.opcionA.periodos}</p>
-                          <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.opcionA.cuota)}</p>
-                        </>
-                      )}
-                      {opcionAjuste === "reducir_cuotas" && (
-                        <>
-                          <p>Periodos: {ajustePreview.opcionB.periodos} (sin cambio)</p>
-                          <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.opcionB.cuota)}</p>
-                        </>
-                      )}
-                      {opcionAjuste === "adelanto" && (
-                        <p>Nuevo saldo: {formatMoney(ajustePreview.nuevoSaldo)}</p>
+                      <p>Periodos: {ajustePreview.periodosActuales} (sin cambio)</p>
+                      <p>Cuota: {formatMoney(ajustePreview.cuotaActual)} → {formatMoney(ajustePreview.nuevaCuota)}</p>
+                    </div>
+                  )}
+
+                  {/* Diferencia por deterioro */}
+                  {tieneDeterioro && diferenciaPorDeterioro > 0 && (
+                    <div className="border-t pt-1 mt-1 text-xs">
+                      <p>Diferencia por deterioro: {formatMoney(diferenciaPorDeterioro)}</p>
+                      {!tieneCreditoActivoPrevio && tipoVentaOriginal === "credito" && (
+                        <p>Resolucion: {opcionDiferencia === "contado" ? "Cobro de contado" : "Ajuste al credito"}</p>
                       )}
                     </div>
                   )}

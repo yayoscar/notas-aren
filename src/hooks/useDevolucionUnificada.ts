@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-
+import { recalcularCuotasCredito } from "@/lib/calculos/credito"
 import { toast } from "sonner"
 
 interface ProductoDevueltoInput {
@@ -28,6 +28,9 @@ interface DevolucionUnificadaInput {
     periodicidad: string
     fecha_siguiente_pago: string
   }
+  // Nuevos campos para devoluciones de credito
+  tiene_credito_activo_previo?: boolean
+  opcion_diferencia?: "contado" | "ajuste_credito"
 }
 
 export function useDevolucionUnificada() {
@@ -42,6 +45,8 @@ export function useDevolucionUnificada() {
         destino_monto,
         motivo,
         ajuste_plan,
+        tiene_credito_activo_previo,
+        opcion_diferencia,
       } = input
 
       // 1. Fetch venta completa con detalle
@@ -54,7 +59,7 @@ export function useDevolucionUnificada() {
 
       const ventaDetalles = (venta as unknown as { ventas_detalle: Array<{ producto_id: string; cantidad: number; precio_unitario: number }> }).ventas_detalle
 
-      // 2. Auto-detectar anulación: si se devuelven TODOS los productos enteros con cantidades completas
+      // 2. Auto-detectar anulacion
       let tipoFinal = input.tipo
       const esDevolucionTotal = ventaDetalles.every((vd) => {
         const devuelto = productos_devueltos.find(
@@ -76,13 +81,9 @@ export function useDevolucionUnificada() {
         if (p.estado_devuelto === "nuevo") {
           return sum + p.precio_original * p.cantidad
         }
-        // segunda or parcial: use precio_depreciado
         const precio = p.precio_depreciado ?? p.precio_original
         return sum + precio * p.cantidad
       }, 0)
-
-      const montoNuevo = 0
-      const diferencia = montoDevuelto
 
       // 4. Insertar registro en devoluciones
       const { data: devolucion, error: devError } = await supabase
@@ -120,7 +121,6 @@ export function useDevolucionUnificada() {
 
         // Revertir inventario
         if (p.estado_devuelto === "nuevo") {
-          // Producto entero: vuelve al stock original
           const { data: prod } = await supabase
             .from("productos")
             .select("stock_actual")
@@ -155,9 +155,8 @@ export function useDevolucionUnificada() {
           if (!prod) continue
 
           const origenId = prod.producto_origen_id || prod.id
-          const estadoDerivado = p.estado_devuelto // "segunda" | "parcial"
+          const estadoDerivado = p.estado_devuelto
 
-          // Buscar si ya existe un derivado del mismo estado y producto origen
           const { data: derivadoExistente } = await supabase
             .from("productos")
             .select("id, stock_actual")
@@ -166,7 +165,6 @@ export function useDevolucionUnificada() {
             .maybeSingle()
 
           if (derivadoExistente) {
-            // Incrementar stock del derivado existente
             await supabase
               .from("productos")
               .update({
@@ -175,7 +173,6 @@ export function useDevolucionUnificada() {
               })
               .eq("id", derivadoExistente.id)
           } else {
-            // Crear nuevo producto derivado con SKU único
             const skuSuffix = estadoDerivado === "segunda" ? "SEG" : "PAR"
             const skuRand = Math.random().toString(36).substring(2, 6).toUpperCase()
             const skuDerivado = `${prod.sku}-${skuSuffix}-${skuRand}`
@@ -204,155 +201,223 @@ export function useDevolucionUnificada() {
         }
       }
 
-      // 6. Si es anulación, marcar venta como cancelada
-      if (tipoFinal === "anulacion") {
-        await supabase
+      // 6. Resolucion del monto segun tipo de venta
+      let montoDevueltoEfectivo = 0
+      let montoAbonadoCredito = 0
+
+      if (tipo_venta_original === "credito") {
+        // ============================================
+        // LOGICA DE CREDITO (8 reglas del PRD)
+        // ============================================
+        const { data: ventaActual } = await supabase
           .from("ventas")
-          .update({
-            estado_venta: "cancelada",
-            motivo_cancelacion: motivo,
-            updated_at: new Date().toISOString(),
-          })
+          .select("total, linea_credito_id")
           .eq("id", input.venta_id)
+          .single()
 
-        if (tipo_venta_original === "credito") {
-          await supabase
-            .from("ventas")
-            .update({ estado_credito: "liquidado" })
-            .eq("id", input.venta_id)
+        const pagos = (venta as unknown as { pagos: Array<{ monto: number }> }).pagos
+        const totalAbonado = pagos.reduce((sum, pg) => sum + pg.monto, 0)
 
-          // Also deduct from linea de credito
-          const { data: ventaAnulada } = await supabase
-            .from("ventas")
-            .select("total, linea_credito_id")
-            .eq("id", input.venta_id)
+        if (ventaActual?.linea_credito_id) {
+          const { data: linea } = await supabase
+            .from("lineas_credito")
+            .select("*")
+            .eq("id", ventaActual.linea_credito_id)
             .single()
 
-          if (ventaAnulada?.linea_credito_id) {
-            const { data: linea } = await supabase
-              .from("lineas_credito")
-              .select("*")
-              .eq("id", ventaAnulada.linea_credito_id)
-              .single()
+          if (linea) {
+            if (tipoFinal === "anulacion") {
+              // === DEVOLUCION TOTAL ===
+              await supabase
+                .from("ventas")
+                .update({
+                  estado_venta: "cancelada",
+                  estado_credito: "liquidado",
+                  motivo_cancelacion: motivo,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", input.venta_id)
 
-            if (linea) {
+              if (tiene_credito_activo_previo) {
+                // GRUPO 2 (2.1, 2.2): Abonar al credito activo
+                const montoAbonar = montoDevuelto // precio segun estado de articulos
+                const nuevoSaldoTotal = linea.saldo_total - montoAbonar
+                const nuevoSaldoPendiente = nuevoSaldoTotal - linea.saldo_pagado
+
+                const lineaUpdate: Record<string, unknown> = {
+                  saldo_total: Math.max(nuevoSaldoTotal, linea.saldo_pagado),
+                  updated_at: new Date().toISOString(),
+                }
+                if (nuevoSaldoPendiente <= 0) {
+                  lineaUpdate.estado = "liquidada"
+                }
+                await supabase
+                  .from("lineas_credito")
+                  .update(lineaUpdate)
+                  .eq("id", linea.id)
+
+                montoAbonadoCredito = montoAbonar
+
+                // Reembolsar abonos previos de esta venta en efectivo
+                if (totalAbonado > 0) {
+                  montoDevueltoEfectivo = totalAbonado
+                }
+              } else {
+                // GRUPO 1 (1.1, 1.2): Cancelar linea propia
+
+                // Calcular diferencia por deterioro
+                const montoVentaOriginal = ventaActual.total
+                const diferenciaDet = montoVentaOriginal - montoDevuelto
+
+                if (diferenciaDet > 0 && opcion_diferencia === "ajuste_credito") {
+                  // Mantener credito por la diferencia
+                  const lineaUpdate: Record<string, unknown> = {
+                    saldo_total: diferenciaDet + linea.saldo_pagado,
+                    updated_at: new Date().toISOString(),
+                  }
+                  if (diferenciaDet <= 0) lineaUpdate.estado = "liquidada"
+                  await supabase.from("lineas_credito").update(lineaUpdate).eq("id", linea.id)
+                } else {
+                  // Cancelar linea completamente
+                  await supabase
+                    .from("lineas_credito")
+                    .update({
+                      saldo_total: linea.saldo_pagado,
+                      estado: "liquidada",
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", linea.id)
+                }
+
+                // Reembolsar abonos en efectivo
+                if (totalAbonado > 0) {
+                  if (diferenciaDet > 0 && opcion_diferencia === "contado") {
+                    // Cliente debe pagar diferencia: restar del reembolso
+                    montoDevueltoEfectivo = Math.max(0, totalAbonado - diferenciaDet)
+                  } else {
+                    montoDevueltoEfectivo = totalAbonado
+                  }
+                }
+
+                montoAbonadoCredito = montoDevuelto
+              }
+            } else {
+              // === DEVOLUCION PARCIAL ===
+              // Actualizar total de la venta
+              const nuevoTotal = ventaActual.total - montoDevuelto
+              await supabase
+                .from("ventas")
+                .update({ total: nuevoTotal, updated_at: new Date().toISOString() })
+                .eq("id", input.venta_id)
+
+              // Recalcular cuotas (mismos plazos)
+              const { nuevoSaldo } = recalcularCuotasCredito({
+                saldoTotal: linea.saldo_total,
+                saldoPagado: linea.saldo_pagado,
+                montoDevolucion: montoDevuelto,
+                mesesCredito: linea.meses_credito,
+                periodicidad: linea.periodicidad as "semanal" | "quincenal" | "mensual",
+              })
+
               const nuevoSaldoTotal = linea.saldo_total - montoDevuelto
-              const newSaldoPendiente = nuevoSaldoTotal - linea.saldo_pagado
               const lineaUpdate: Record<string, unknown> = {
                 saldo_total: Math.max(nuevoSaldoTotal, linea.saldo_pagado),
                 updated_at: new Date().toISOString(),
               }
-              if (newSaldoPendiente <= 0) {
+              if (nuevoSaldo <= 0) {
                 lineaUpdate.estado = "liquidada"
               }
               await supabase
                 .from("lineas_credito")
                 .update(lineaUpdate)
                 .eq("id", linea.id)
+
+              montoAbonadoCredito = montoDevuelto
             }
           }
+        } else {
+          // Venta de credito sin linea_credito (fallback)
+          if (tipoFinal === "anulacion") {
+            await supabase
+              .from("ventas")
+              .update({
+                estado_venta: "cancelada",
+                estado_credito: "liquidado",
+                motivo_cancelacion: motivo,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", input.venta_id)
+            if (totalAbonado > 0) {
+              montoDevueltoEfectivo = totalAbonado
+            }
+          } else {
+            const nuevoTotal = ventaActual!.total - montoDevuelto
+            await supabase
+              .from("ventas")
+              .update({ total: nuevoTotal, updated_at: new Date().toISOString() })
+              .eq("id", input.venta_id)
+          }
         }
-      }
+      } else {
+        // ============================================
+        // LOGICA DE CONTADO (sin cambios)
+        // ============================================
+        if (tipoFinal === "anulacion") {
+          await supabase
+            .from("ventas")
+            .update({
+              estado_venta: "cancelada",
+              motivo_cancelacion: motivo,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", input.venta_id)
+        }
 
-      // 7. Resolución del monto
-      let montoResolver = montoDevuelto
-      let montoDevueltoEfectivo = 0
-      let montoAbonadoCredito = 0
-      const creditoAbonadoFolio = ""
-
-      if (montoResolver > 0) {
-        // Si la venta original es de crédito: deducir de la línea de crédito
-        if (tipo_venta_original === "credito" && tipoFinal !== "anulacion") {
-          // Fetch linea_credito_id from the venta
+        // Para contado con credito activo
+        if (destino_monto === "abono_credito" || destino_monto === "ajuste_plan") {
           const { data: ventaActual } = await supabase
             .from("ventas")
             .select("total, linea_credito_id")
             .eq("id", input.venta_id)
             .single()
 
-          if (ventaActual) {
-            // Update the venta total
-            const nuevoTotal = ventaActual.total - montoResolver
-            await supabase
-              .from("ventas")
-              .update({ total: nuevoTotal, updated_at: new Date().toISOString() })
-              .eq("id", input.venta_id)
+          if (ventaActual?.linea_credito_id) {
+            const { data: linea } = await supabase
+              .from("lineas_credito")
+              .select("*")
+              .eq("id", ventaActual.linea_credito_id)
+              .single()
 
-            // Deduct from linea de credito if it exists
-            if (ventaActual.linea_credito_id) {
-              const { data: linea } = await supabase
-                .from("lineas_credito")
-                .select("*")
-                .eq("id", ventaActual.linea_credito_id)
-                .single()
+            if (linea) {
+              const nuevoSaldoTotal = linea.saldo_total - montoDevuelto
+              const newSaldoPendiente = nuevoSaldoTotal - linea.saldo_pagado
 
-              if (linea) {
-                const nuevoSaldoTotal = linea.saldo_total - montoResolver
-                const newSaldoPendiente = nuevoSaldoTotal - linea.saldo_pagado
-
-                const lineaUpdate: Record<string, unknown> = {
-                  saldo_total: nuevoSaldoTotal,
-                  updated_at: new Date().toISOString(),
-                }
-
-                if (newSaldoPendiente <= 0) {
-                  lineaUpdate.estado = "liquidada"
-                }
-
-                // If destino is ajuste_plan, also update plan values on the linea
-                if (destino_monto === "ajuste_plan" && ajuste_plan) {
-                  lineaUpdate.meses_credito = ajuste_plan.meses_credito
-                  lineaUpdate.periodicidad = ajuste_plan.periodicidad
-                  lineaUpdate.fecha_siguiente_pago = ajuste_plan.fecha_siguiente_pago
-                }
-
-                await supabase
-                  .from("lineas_credito")
-                  .update(lineaUpdate)
-                  .eq("id", linea.id)
-
-                montoAbonadoCredito = montoResolver
-
-                if (newSaldoPendiente < 0) {
-                  // Overpayment: saldo_pagado exceeds new saldo_total
-                  // Clamp saldo_total to saldo_pagado so the linea is balanced
-                  montoDevueltoEfectivo = Math.abs(newSaldoPendiente)
-                  await supabase
-                    .from("lineas_credito")
-                    .update({ saldo_total: linea.saldo_pagado })
-                    .eq("id", linea.id)
-                  montoAbonadoCredito = montoResolver - montoDevueltoEfectivo
-                }
-
-                montoResolver = montoDevueltoEfectivo // Only the overpayment remains
+              const lineaUpdate: Record<string, unknown> = {
+                saldo_total: nuevoSaldoTotal,
+                updated_at: new Date().toISOString(),
               }
-            } else {
-              // No linea — fallback: check if abonos exceed new total
-              const pagos = (venta as unknown as { pagos: Array<{ monto: number }> }).pagos
-              const totalPagado = pagos.reduce((sum, pg) => sum + pg.monto, 0)
-
-              if (totalPagado > nuevoTotal) {
-                montoResolver = totalPagado - nuevoTotal
-                if (totalPagado >= nuevoTotal) {
-                  await supabase
-                    .from("ventas")
-                    .update({ estado_credito: "liquidado", updated_at: new Date().toISOString() })
-                    .eq("id", input.venta_id)
-                }
-              } else {
-                montoResolver = 0
+              if (newSaldoPendiente <= 0) {
+                lineaUpdate.estado = "liquidada"
               }
+              if (destino_monto === "ajuste_plan" && ajuste_plan) {
+                lineaUpdate.meses_credito = ajuste_plan.meses_credito
+                lineaUpdate.periodicidad = ajuste_plan.periodicidad
+                lineaUpdate.fecha_siguiente_pago = ajuste_plan.fecha_siguiente_pago
+              }
+              await supabase.from("lineas_credito").update(lineaUpdate).eq("id", linea.id)
+              montoAbonadoCredito = montoDevuelto
             }
           }
-        }
-
-        // Lo que quede se devuelve en efectivo
-        if (montoResolver > 0) {
-          montoDevueltoEfectivo = montoResolver
+        } else {
+          montoDevueltoEfectivo = montoDevuelto
         }
       }
 
-      // 8. Registrar en historial
+      // 7. Registrar en historial
+      const grupoRegla = tipo_venta_original === "credito"
+        ? tiene_credito_activo_previo ? "con_credito_activo" : "sin_credito_activo"
+        : "contado"
+
       await supabase.from("ventas_historial").insert({
         venta_id: input.venta_id,
         tipo: tipoFinal,
@@ -361,12 +426,11 @@ export function useDevolucionUnificada() {
         datos_nuevos: {
           productos_devueltos,
           monto_devuelto: montoDevuelto,
-          monto_nuevo: montoNuevo,
-          diferencia,
           destino_monto,
           monto_abonado_credito: montoAbonadoCredito,
           monto_devuelto_efectivo: montoDevueltoEfectivo,
-          credito_abonado_folio: creditoAbonadoFolio,
+          grupo: grupoRegla,
+          opcion_diferencia: opcion_diferencia ?? null,
         },
         motivo,
       })
@@ -375,11 +439,11 @@ export function useDevolucionUnificada() {
         devolucion,
         tipo: tipoFinal,
         montoDevuelto,
-        montoNuevo,
-        diferencia,
+        montoNuevo: 0,
+        diferencia: montoDevuelto,
         montoAbonadoCredito,
         montoDevueltoEfectivo,
-        creditoAbonadoFolio,
+        creditoAbonadoFolio: "",
       }
     },
     onSuccess: (data) => {
