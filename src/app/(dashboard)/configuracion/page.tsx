@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Save } from "lucide-react"
+import { Save, Upload } from "lucide-react"
+import Link from "next/link"
 
 export default function ConfiguracionPage() {
   const { isAdmin, isLoading: isLoadingVendedor } = useVendedorActual()
@@ -121,6 +122,22 @@ export default function ConfiguracionPage() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Importación Masiva</CardTitle>
+          <CardDescription>
+            Carga inicial de productos, clientes y créditos desde archivos Excel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/configuracion/importacion">
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Ir a Importación
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>
