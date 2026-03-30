@@ -53,6 +53,42 @@ export default function ProveedoresPage() {
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : (
+            <>
+            {/* Mobile cards */}
+            <div className="space-y-2 md:hidden">
+              {query.data?.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  No hay proveedores registrados
+                </p>
+              )}
+              {query.data?.map((p) => (
+                <div key={p.id} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{p.nombre}</span>
+                      <Badge variant={p.activo ? "default" : "secondary"}>
+                        {p.activo ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => handleEdit(p)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>{p.telefono ?? "—"}</span>
+                    <span>{p.email ?? "—"}</span>
+                  </div>
+                  {p.nombre_contacto && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Contacto: {p.nombre_contacto}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -92,6 +128,8 @@ export default function ProveedoresPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

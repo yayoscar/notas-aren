@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useVentas } from "@/hooks/useVentas"
+import { useVendedores } from "@/hooks/useVendedores"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,8 +79,13 @@ type EstadoVentaFilter = "activas" | "canceladas" | "todas"
 
 function VentasListado({ onBack }: { onBack: () => void }) {
   const { query } = useVentas()
+  const { query: vendedoresQuery } = useVendedores()
   const [search, setSearch] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<EstadoVentaFilter>("activas")
+  const [vendedorFilter, setVendedorFilter] = useState("todos")
+  const [tipoFilter, setTipoFilter] = useState("todos")
+
+  const vendedores = vendedoresQuery.data?.filter((v) => v.activo) ?? []
 
   const filtered = useMemo(() => {
     if (!query.data) return []
@@ -91,6 +97,14 @@ function VentasListado({ onBack }: { onBack: () => void }) {
       items = items.filter((v) => v.estado_venta === "cancelada")
     }
 
+    if (vendedorFilter !== "todos") {
+      items = items.filter((v) => v.vendedor_id === vendedorFilter)
+    }
+
+    if (tipoFilter !== "todos") {
+      items = items.filter((v) => v.tipo_venta === tipoFilter)
+    }
+
     if (!search) return items
     const s = search.toLowerCase()
     return items.filter(
@@ -99,7 +113,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
         v.clientes?.nombre.toLowerCase().includes(s) ||
         (v.vendedores?.nombre ?? "").toLowerCase().includes(s)
     )
-  }, [query.data, search, estadoFilter])
+  }, [query.data, search, estadoFilter, vendedorFilter, tipoFilter])
 
   return (
     <div className="space-y-4">
@@ -123,7 +137,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
           <CardTitle>Listado de ventas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,19 +147,48 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                 className="pl-10"
               />
             </div>
-            <Select
-              value={estadoFilter}
-              onValueChange={(v) => setEstadoFilter(v as EstadoVentaFilter)}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="activas">Activas</SelectItem>
-                <SelectItem value="canceladas">Canceladas</SelectItem>
-                <SelectItem value="todas">Todas</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              <Select
+                value={vendedorFilter}
+                onValueChange={setVendedorFilter}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Vendedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {vendedores.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={tipoFilter}
+                onValueChange={setTipoFilter}
+              >
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="contado">Contado</SelectItem>
+                  <SelectItem value="credito">Crédito</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={estadoFilter}
+                onValueChange={(v) => setEstadoFilter(v as EstadoVentaFilter)}
+              >
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="activas">Activas</SelectItem>
+                  <SelectItem value="canceladas">Canceladas</SelectItem>
+                  <SelectItem value="todas">Todas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {query.isLoading ? (
@@ -154,92 +197,115 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Sin registros</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="hidden sm:table-cell">Folio</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="hidden md:table-cell">Vendedor</TableHead>
-                  <TableHead className="hidden sm:table-cell">Tipo</TableHead>
-                  <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center text-muted-foreground"
-                    >
-                      Sin registros
-                    </TableCell>
-                  </TableRow>
-                )}
+            <>
+              {/* Mobile cards */}
+              <div className="space-y-2 md:hidden">
                 {filtered.map((v) => (
-                  <TableRow
-                    key={v.id}
-                    className={v.estado_venta === "cancelada" ? "opacity-50" : ""}
-                  >
-                    <TableCell className="hidden sm:table-cell">
-                      <Link
-                        href={`/ventas/${v.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {v.folio}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/ventas/${v.id}`}
-                        className="font-medium hover:underline sm:no-underline sm:pointer-events-none"
-                      >
-                        {v.clientes?.nombre ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {v.vendedores?.nombre ?? "—"}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge
-                        variant={
-                          v.tipo_venta === "contado" ? "default" : "secondary"
-                        }
-                      >
-                        {v.tipo_venta === "contado" ? "Contado" : "Crédito"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      {new Date(v.fecha).toLocaleDateString("es-MX")}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatMoney(v.total)}
-                    </TableCell>
-                    <TableCell>
-                      {v.estado_venta === "cancelada" ? (
-                        <Badge variant="destructive">Cancelada</Badge>
-                      ) : v.tipo_venta === "credito" ? (
-                        <Badge
-                          variant={
-                            v.estado_credito === "liquidado"
-                              ? "default"
-                              : "outline"
-                          }
-                        >
-                          {v.estado_credito === "liquidado"
-                            ? "Pagado"
-                            : "Activo"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="default">Pagado</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <Link key={v.id} href={`/ventas/${v.id}`} className="block">
+                    <div className={`rounded-lg border p-3 ${v.estado_venta === "cancelada" ? "opacity-50" : ""}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium truncate">{v.clientes?.nombre ?? "—"}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge variant={v.tipo_venta === "contado" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                            {v.tipo_venta === "contado" ? "Contado" : "Crédito"}
+                          </Badge>
+                          {v.estado_venta === "cancelada" ? (
+                            <Badge variant="destructive">Cancelada</Badge>
+                          ) : v.tipo_venta === "credito" ? (
+                            <Badge variant={v.estado_credito === "liquidado" ? "default" : "outline"}>
+                              {v.estado_credito === "liquidado" ? "Pagado" : "Activo"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="default">Pagado</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">{v.vendedores?.nombre ?? "—"}</span>
+                        <span className="text-sm font-bold font-mono tabular-nums">{formatMoney(v.total)}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">{v.folio}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(v.fecha).toLocaleDateString("es-MX")}</span>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Folio</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((v) => (
+                      <TableRow
+                        key={v.id}
+                        className={v.estado_venta === "cancelada" ? "opacity-50" : ""}
+                      >
+                        <TableCell>
+                          <Link
+                            href={`/ventas/${v.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {v.folio}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{v.clientes?.nombre ?? "—"}</TableCell>
+                        <TableCell>{v.vendedores?.nombre ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              v.tipo_venta === "contado" ? "default" : "secondary"
+                            }
+                          >
+                            {v.tipo_venta === "contado" ? "Contado" : "Crédito"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(v.fecha).toLocaleDateString("es-MX")}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatMoney(v.total)}
+                        </TableCell>
+                        <TableCell>
+                          {v.estado_venta === "cancelada" ? (
+                            <Badge variant="destructive">Cancelada</Badge>
+                          ) : v.tipo_venta === "credito" ? (
+                            <Badge
+                              variant={
+                                v.estado_credito === "liquidado"
+                                  ? "default"
+                                  : "outline"
+                              }
+                            >
+                              {v.estado_credito === "liquidado"
+                                ? "Pagado"
+                                : "Activo"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="default">Pagado</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

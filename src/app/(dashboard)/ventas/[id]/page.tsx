@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { useVenta } from "@/hooks/useVentas"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { useCrearAbono } from "@/hooks/usePagos"
+import { usePagosByLinea } from "@/hooks/useLineaCredito"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -57,6 +58,9 @@ export default function VentaDetailPage() {
   const [abonoCuenta, setAbonoCuenta] = useState<string | null>(null)
   const [devolucionDialogOpen, setDevolucionDialogOpen] = useState(false)
 
+  const tieneLinea = !!venta?.linea_credito_id
+  const { data: pagosLinea } = usePagosByLinea(venta?.linea_credito_id ?? "")
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -70,11 +74,18 @@ export default function VentaDetailPage() {
     return <p className="text-muted-foreground">Venta no encontrada</p>
   }
 
-  const totalAbonado = (venta.pagos ?? []).reduce(
+  // Use linea pagos when available, otherwise fall back to venta pagos
+  const pagosActivos = tieneLinea && pagosLinea ? pagosLinea : (venta.pagos ?? [])
+
+  const totalAbonado = pagosActivos.reduce(
     (sum, p) => sum + p.monto,
     0
   )
-  const saldoRestante = venta.total - totalAbonado
+  const saldoRestante = venta.total - (tieneLinea ? 0 : totalAbonado)
+  // For linea-based ventas, saldo is tracked at the linea level
+  const lineaSaldoPendiente = tieneLinea && venta.lineas_credito
+    ? Math.max(0, venta.lineas_credito.saldo_total - venta.lineas_credito.saldo_pagado)
+    : saldoRestante
   const esCreditoActivo =
     venta.tipo_venta === "credito" && venta.estado_credito === "activo"
   const esActiva = venta.estado_venta !== "cancelada"
@@ -86,6 +97,7 @@ export default function VentaDetailPage() {
     if (!vendedor || abonoMonto <= 0) return
     crearAbono.mutate(
       {
+        linea_credito_id: venta!.linea_credito_id ?? venta!.id,
         venta_id: venta!.id,
         monto: abonoMonto,
         tipo_pago: abonoTipo,
@@ -105,6 +117,26 @@ export default function VentaDetailPage() {
   }
 
   function buildTablaPagosElement() {
+    const linea = venta!.lineas_credito
+    if (linea) {
+      const saldoPendiente = linea.saldo_total - linea.saldo_pagado
+      return (
+        <TablaPagosPDF
+          folio={venta!.folio}
+          clienteNombre={venta!.clientes?.nombre ?? ""}
+          total={venta!.total}
+          primerAbono={0}
+          saldoProyectado={saldoPendiente}
+          meses={linea.meses_credito}
+          periodicidad={linea.periodicidad}
+          fechaPrimerPago={linea.fecha_siguiente_pago ?? venta!.fecha_primer_pago ?? ""}
+          pagosRealizados={(pagosLinea ?? []).map((p) => ({
+            monto: p.monto,
+            fecha: p.fecha,
+          }))}
+        />
+      )
+    }
     return (
       <TablaPagosPDF
         folio={venta!.folio}
@@ -163,7 +195,7 @@ export default function VentaDetailPage() {
           )}
         </div>
         {esActiva && vendedor && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -184,6 +216,20 @@ export default function VentaDetailPage() {
         </div>
       )}
 
+      {tieneLinea && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3 text-sm text-blue-800 dark:text-blue-300 flex items-center justify-between gap-3 flex-wrap">
+          <span>
+            Esta venta pertenece a la línea de crédito del cliente. Saldo pendiente:{" "}
+            <span className="font-bold font-mono">{formatMoney(lineaSaldoPendiente)}</span>
+          </span>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/clientes/${venta.cliente_id}/credito/${venta.linea_credito_id}`}>
+              Ver crédito
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {esActiva && vendedor && (
         <DevolucionUnificadaDialog
           venta={venta}
@@ -194,11 +240,13 @@ export default function VentaDetailPage() {
       )}
 
       <Tabs defaultValue="detalle">
-        <TabsList>
-          <TabsTrigger value="detalle">Detalle</TabsTrigger>
-          <TabsTrigger value="pagos">Pagos</TabsTrigger>
-          <TabsTrigger value="historial">Historial</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="w-max sm:w-auto">
+            <TabsTrigger value="detalle">Detalle</TabsTrigger>
+            <TabsTrigger value="pagos">Pagos</TabsTrigger>
+            <TabsTrigger value="historial">Historial</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="detalle" className="mt-4 space-y-4">
           <Card>
@@ -259,51 +307,103 @@ export default function VentaDetailPage() {
               <CardTitle>Productos</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead className="text-right">Precio</TableHead>
-                    <TableHead className="text-right">Cant.</TableHead>
-                    <TableHead className="text-right">Subtotal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(venta.ventas_detalle ?? []).map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-medium">
-                            {d.productos?.nombre ?? "—"}
-                          </p>
-                          {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                              {d.productos.estado_producto === "tester" ? "Tester" : "Parcial"}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {d.productos?.sku}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMoney(d.precio_unitario)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {d.cantidad}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatMoney(d.subtotal)}
-                      </TableCell>
+              {/* Mobile cards */}
+              <div className="space-y-2 md:hidden">
+                {(venta.ventas_detalle ?? []).length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-4">Sin productos</p>
+                )}
+                {(venta.ventas_detalle ?? []).map((d) => (
+                  <div key={d.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{d.productos?.nombre ?? "—"}</p>
+                      {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
+                        const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
+                        const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
+                        const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
+                        return (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                            {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}
+                          </Badge>
+                        )
+                      })()}
+                    </div>
+                    <div className="flex justify-between text-xs mt-1">
+                      <span>Cant: {d.cantidad}</span>
+                      <span>{formatMoney(d.precio_unitario)}</span>
+                      <span className="font-bold font-mono tabular-nums">{formatMoney(d.subtotal)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Producto</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(venta.ventas_detalle ?? []).map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium">
+                              {d.productos?.nombre ?? "—"}
+                            </p>
+                            {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
+                              const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
+                              const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
+                              const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
+                              return (
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                  {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}
+                                </Badge>
+                              )
+                            })()}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {d.productos?.sku}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(d.precio_unitario)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {d.cantidad}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatMoney(d.subtotal)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="pagos" className="mt-4 space-y-4">
+          {tieneLinea ? (
+            <Card>
+              <CardContent className="pt-6 text-center space-y-4">
+                <p className="text-muted-foreground">
+                  Los pagos de esta venta se gestionan desde la línea de crédito del cliente.
+                </p>
+                <Button asChild>
+                  <Link href={`/clientes/${venta.cliente_id}/credito/${venta.linea_credito_id}`}>
+                    Ver crédito del cliente
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
           {venta.tipo_venta === "credito" && (
             <Card>
               <CardContent className="pt-6">
@@ -321,9 +421,9 @@ export default function VentaDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Restante</p>
+                    <p className="text-sm text-muted-foreground">Pendiente</p>
                     <p className="text-xl font-bold text-orange-600">
-                      {formatMoney(saldoRestante)}
+                      {formatMoney(lineaSaldoPendiente)}
                     </p>
                   </div>
                 </div>
@@ -332,7 +432,7 @@ export default function VentaDetailPage() {
           )}
 
           {venta.tipo_venta === "credito" && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -396,103 +496,184 @@ export default function VentaDetailPage() {
                 </div>
               )}
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead>Tipo de pago</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Cuenta</TableHead>
-                    <TableHead className="text-right">Saldo restante</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(venta.pagos ?? []).length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center text-muted-foreground"
-                      >
-                        Sin pagos registrados
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {(() => {
-                    let saldoAcumulado = venta.total
-                    return (venta.pagos ?? []).map((p) => {
-                      saldoAcumulado -= p.monto
-                      const saldoAnterior = saldoAcumulado + p.monto
-                      return (
-                        <TableRow key={p.id}>
-                          <TableCell>
+              {/* Mobile cards */}
+              <div className="space-y-2 md:hidden">
+                {pagosActivos.length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-4">Sin pagos registrados</p>
+                )}
+                {(() => {
+                  let saldoAcumulado = venta.total
+                  return pagosActivos.map((p) => {
+                    saldoAcumulado -= p.monto
+                    const saldoAnterior = saldoAcumulado + p.monto
+                    return (
+                      <div key={p.id} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between">
+                          <Badge variant={p.tipo_pago === "devolucion" ? "secondary" : "outline"}>
+                            {p.tipo_pago === "efectivo"
+                              ? "Efectivo"
+                              : p.tipo_pago === "transferencia"
+                                ? "Transferencia"
+                                : p.tipo_pago === "devolucion"
+                                  ? "Devolución"
+                                  : "Retiro s/tarjeta"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
                             {new Date(p.fecha).toLocaleDateString("es-MX")}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatMoney(p.monto)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={p.tipo_pago === "devolucion" ? "secondary" : "outline"}>
-                              {p.tipo_pago === "efectivo"
-                                ? "Efectivo"
-                                : p.tipo_pago === "transferencia"
-                                  ? "Transferencia"
-                                  : p.tipo_pago === "devolucion"
-                                    ? "Devolución"
-                                    : "Retiro s/tarjeta"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {p.vendedores?.nombre ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-3 mt-1">
+                          <span className="text-lg font-bold font-mono">{formatMoney(p.monto)}</span>
+                          <span className="text-xs text-muted-foreground">Saldo: {formatMoney(saldoAcumulado)}</span>
+                        </div>
+                        {(p.vendedores?.nombre || (p.tipo_pago === "transferencia" && p.cat_cuenta_bancaria)) && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {p.vendedores?.nombre}
+                            {p.vendedores?.nombre && p.tipo_pago === "transferencia" && p.cat_cuenta_bancaria ? " · " : ""}
                             {p.tipo_pago === "transferencia" && p.cat_cuenta_bancaria
                               ? `${p.cat_cuenta_bancaria.alias} — ${p.cat_cuenta_bancaria.clabe}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatMoney(saldoAcumulado)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={async () => {
-                                try {
-                                  const blob = await pdf(
-                                    <AbonoTicketPDF
-                                      folio={venta.folio}
-                                      clienteNombre={venta.clientes?.nombre ?? ""}
-                                      fecha={p.fecha}
-                                      monto={p.monto}
-                                      tipoPago={p.tipo_pago}
-                                      totalCredito={venta.total}
-                                      totalAbonado={venta.total - saldoAcumulado}
-                                      saldoRestante={saldoAcumulado}
-                                      saldoAnterior={saldoAnterior}
-                                      vendedorNombre={p.vendedores?.nombre ?? ""}
-                                      fechaVenta={venta.fecha}
-                                    />
-                                  ).toBlob()
-                                  await downloadPDF(blob, `abono-${venta.folio}-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
-                                } catch {
-                                  // PDF generation failed silently
-                                }
-                              }}
-                              title="Imprimir comprobante"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  })()}
-                </TableBody>
-              </Table>
+                              : ""}
+                          </p>
+                        )}
+                        <div className="flex justify-end mt-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              try {
+                                const blob = await pdf(
+                                  <AbonoTicketPDF
+                                    folio={venta.folio}
+                                    clienteNombre={venta.clientes?.nombre ?? ""}
+                                    fecha={p.fecha}
+                                    monto={p.monto}
+                                    tipoPago={p.tipo_pago}
+                                    totalCredito={venta.total}
+                                    totalAbonado={venta.total - saldoAcumulado}
+                                    saldoRestante={saldoAcumulado}
+                                    saldoAnterior={saldoAnterior}
+                                    vendedorNombre={p.vendedores?.nombre ?? ""}
+                                    fechaVenta={venta.fecha}
+                                  />
+                                ).toBlob()
+                                await downloadPDF(blob, `abono-${venta.folio}-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                              } catch {
+                                // PDF generation failed silently
+                              }
+                            }}
+                            title="Imprimir comprobante"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead>Tipo de pago</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead>Cuenta</TableHead>
+                      <TableHead className="text-right">Saldo restante</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagosActivos.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          className="text-center text-muted-foreground"
+                        >
+                          Sin pagos registrados
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {(() => {
+                      let saldoAcumulado = venta.total
+                      return pagosActivos.map((p) => {
+                        saldoAcumulado -= p.monto
+                        const saldoAnterior = saldoAcumulado + p.monto
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell>
+                              {new Date(p.fecha).toLocaleDateString("es-MX")}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatMoney(p.monto)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={p.tipo_pago === "devolucion" ? "secondary" : "outline"}>
+                                {p.tipo_pago === "efectivo"
+                                  ? "Efectivo"
+                                  : p.tipo_pago === "transferencia"
+                                    ? "Transferencia"
+                                    : p.tipo_pago === "devolucion"
+                                      ? "Devolución"
+                                      : "Retiro s/tarjeta"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {p.vendedores?.nombre ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {p.tipo_pago === "transferencia" && p.cat_cuenta_bancaria
+                                ? `${p.cat_cuenta_bancaria.alias} — ${p.cat_cuenta_bancaria.clabe}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatMoney(saldoAcumulado)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={async () => {
+                                  try {
+                                    const blob = await pdf(
+                                      <AbonoTicketPDF
+                                        folio={venta.folio}
+                                        clienteNombre={venta.clientes?.nombre ?? ""}
+                                        fecha={p.fecha}
+                                        monto={p.monto}
+                                        tipoPago={p.tipo_pago}
+                                        totalCredito={venta.total}
+                                        totalAbonado={venta.total - saldoAcumulado}
+                                        saldoRestante={saldoAcumulado}
+                                        saldoAnterior={saldoAnterior}
+                                        vendedorNombre={p.vendedores?.nombre ?? ""}
+                                        fechaVenta={venta.fecha}
+                                      />
+                                    ).toBlob()
+                                    await downloadPDF(blob, `abono-${venta.folio}-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                                  } catch {
+                                    // PDF generation failed silently
+                                  }
+                                }}
+                                title="Imprimir comprobante"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
+            </>
+          )}
         </TabsContent>
         <TabsContent value="historial" className="mt-4">
           <VentaHistorialTab ventaId={id} />

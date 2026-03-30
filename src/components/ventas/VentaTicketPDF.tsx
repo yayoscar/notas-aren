@@ -146,7 +146,7 @@ export function VentaTicketPDF({
               <Text>
                 {d.nombre}
                 {d.estado_producto && d.estado_producto !== "nuevo"
-                  ? ` (${d.estado_producto === "tester" ? "Tester" : "Parcial"})`
+                  ? ` (${d.estado_producto === "parcial" ? "Parcial" : "Segunda"})`
                   : ""}
               </Text>
               {(d.marca || d.genero || d.sku) && (

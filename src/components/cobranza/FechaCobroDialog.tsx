@@ -34,7 +34,7 @@ export function FechaCobroDialog({ credito, open, onOpenChange }: Props) {
   function handleGuardar() {
     if (!credito || !fecha) return
     asignar.mutate(
-      { venta_id: credito.id, fecha_cobro_especifica: fecha },
+      { linea_credito_id: credito.id, fecha_cobro_especifica: fecha },
       { onSuccess: () => onOpenChange(false) }
     )
   }
@@ -42,7 +42,7 @@ export function FechaCobroDialog({ credito, open, onOpenChange }: Props) {
   function handleQuitar() {
     if (!credito) return
     asignar.mutate(
-      { venta_id: credito.id, fecha_cobro_especifica: null },
+      { linea_credito_id: credito.id, fecha_cobro_especifica: null },
       {
         onSuccess: () => {
           setFecha("")
@@ -63,7 +63,7 @@ export function FechaCobroDialog({ credito, open, onOpenChange }: Props) {
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {credito.clientes?.nombre} — {credito.folio}
+            {credito.clientes?.nombre}
           </p>
 
           <div className="space-y-2">

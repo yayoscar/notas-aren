@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useProductos, type ProductoWithRelations } from "@/hooks/useProductos"
 import { StockBadge } from "@/components/inventario/StockBadge"
+import { ProductoCard } from "@/components/inventario/ProductoCard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type EstadoFilter = "todos" | "nuevo" | "tester" | "parcial"
+type EstadoFilter = "todos" | "nuevo" | "parcial" | "segunda"
 
 export default function InventarioPage() {
   const { query } = useProductos()
@@ -55,8 +56,8 @@ export default function InventarioPage() {
 
   const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     nuevo: { label: "Nuevo", variant: "default" },
-    tester: { label: "Tester", variant: "secondary" },
-    parcial: { label: "Parcial", variant: "outline" },
+    parcial: { label: "Parcial", variant: "secondary" },
+    segunda: { label: "Segunda", variant: "outline" },
   }
 
   return (
@@ -73,7 +74,8 @@ export default function InventarioPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="mb-4 flex gap-2">
+          {/* Filters — stacks on mobile, row on desktop */}
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -83,89 +85,102 @@ export default function InventarioPage() {
                 className="pl-10"
               />
             </div>
-            <Select
-              value={estadoFilter}
-              onValueChange={(v) => setEstadoFilter(v as EstadoFilter)}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="nuevo">Nuevos</SelectItem>
-                <SelectItem value="tester">Testers</SelectItem>
-                <SelectItem value="parcial">Parciales</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant={stockBajoOnly ? "default" : "outline"}
-              onClick={() => setStockBajoOnly(!stockBajoOnly)}
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Stock bajo
-            </Button>
+            <div className="flex gap-2">
+              <Select
+                value={estadoFilter}
+                onValueChange={(v) => setEstadoFilter(v as EstadoFilter)}
+              >
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="nuevo">Nuevos</SelectItem>
+                  <SelectItem value="parcial">Parciales</SelectItem>
+                  <SelectItem value="segunda">Segundas</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant={stockBajoOnly ? "default" : "outline"}
+                onClick={() => setStockBajoOnly(!stockBajoOnly)}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Stock bajo
+              </Button>
+            </div>
           </div>
 
           {query.isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
+          ) : filtered.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">
+              {search || stockBajoOnly || estadoFilter !== "todos"
+                ? "No se encontraron resultados"
+                : "No hay productos registrados"}
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="hidden sm:table-cell">SKU</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="hidden sm:table-cell">Marca</TableHead>
-                  <TableHead className="hidden lg:table-cell">Género</TableHead>
-                  <TableHead className="hidden lg:table-cell">Tipo</TableHead>
-                  <TableHead className="text-right">P. Contado</TableHead>
-                  <TableHead className="hidden sm:table-cell text-right">P. Crédito</TableHead>
-                  <TableHead className="text-center">Stock</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      {search || stockBajoOnly ? "No se encontraron resultados" : "No hay productos registrados"}
-                    </TableCell>
-                  </TableRow>
-                )}
+            <>
+              {/* Mobile: cards */}
+              <div className="space-y-2 md:hidden">
                 {filtered.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="hidden sm:table-cell">
-                      <Link href={`/inventario/${p.id}`} className="font-mono text-sm hover:underline">
-                        {p.sku}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Link href={`/inventario/${p.id}`} className="font-medium hover:underline">
-                          {p.nombre}
-                        </Link>
-                        {p.estado_producto && p.estado_producto !== "nuevo" && (
-                          <Badge variant={ESTADO_BADGE[p.estado_producto]?.variant ?? "outline"} className="text-xs">
-                            {ESTADO_BADGE[p.estado_producto]?.label ?? p.estado_producto}
-                          </Badge>
-                        )}
-                        {p.producto_origen_id && (
-                          <span className="text-xs text-muted-foreground">↳ derivado</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{p.marca}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{p.cat_genero?.nombre ?? "—"}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
-                    <TableCell className="text-right">{formatMoney(Number(p.precio_venta_contado))}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-right">{formatMoney(Number(p.precio_venta_credito))}</TableCell>
-                    <TableCell className="text-center">
-                      <StockBadge stockActual={p.stock_actual} stockMinimo={p.stock_minimo} />
-                    </TableCell>
-                  </TableRow>
+                  <ProductoCard key={p.id} producto={p} />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Marca</TableHead>
+                      <TableHead className="hidden lg:table-cell">Género</TableHead>
+                      <TableHead className="hidden lg:table-cell">Tipo</TableHead>
+                      <TableHead className="text-right">P. Contado</TableHead>
+                      <TableHead className="text-right">P. Crédito</TableHead>
+                      <TableHead className="text-center">Stock</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <Link href={`/inventario/${p.id}`} className="font-mono text-sm hover:underline">
+                            {p.sku}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Link href={`/inventario/${p.id}`} className="font-medium hover:underline">
+                              {p.nombre}
+                            </Link>
+                            {p.estado_producto && p.estado_producto !== "nuevo" && (
+                              <Badge variant={ESTADO_BADGE[p.estado_producto]?.variant ?? "outline"} className="text-xs">
+                                {ESTADO_BADGE[p.estado_producto]?.label ?? p.estado_producto}
+                              </Badge>
+                            )}
+                            {p.producto_origen_id && (
+                              <span className="text-xs text-muted-foreground">↳ derivado</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{p.marca}</TableCell>
+                        <TableCell className="hidden lg:table-cell">{p.cat_genero?.nombre ?? "—"}</TableCell>
+                        <TableCell className="hidden lg:table-cell">{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
+                        <TableCell className="text-right">{formatMoney(Number(p.precio_venta_contado))}</TableCell>
+                        <TableCell className="text-right">{formatMoney(Number(p.precio_venta_credito))}</TableCell>
+                        <TableCell className="text-center">
+                          <StockBadge stockActual={p.stock_actual} stockMinimo={p.stock_minimo} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

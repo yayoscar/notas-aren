@@ -30,6 +30,7 @@ interface Props {
     cuenta_bancaria_id: string | null
   } | null
   deudaAcumulada: number
+  hideTerms?: boolean
   onMesesCreditoChange: (v: number) => void
   onPeriodicidadChange: (v: string) => void
   onFechaPrimerPagoChange: (v: string) => void
@@ -52,6 +53,7 @@ export function CreditoFields({
   entregaDespuesPago,
   primerAbono,
   deudaAcumulada,
+  hideTerms,
   onMesesCreditoChange,
   onPeriodicidadChange,
   onFechaPrimerPagoChange,
@@ -81,57 +83,64 @@ export function CreditoFields({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="space-y-2">
-          <Label>Plazo del crédito *</Label>
-          <Select
-            value={String(mesesCredito)}
-            onValueChange={(v) => onMesesCreditoChange(Number(v))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">1 mes</SelectItem>
-              <SelectItem value="2">2 meses</SelectItem>
-              <SelectItem value="3">3 meses</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors?.meses_credito && (
-            <p className="text-sm text-destructive">{errors.meses_credito}</p>
-          )}
-        </div>
+      <div className={`grid grid-cols-1 gap-4 ${hideTerms ? "md:grid-cols-2" : "md:grid-cols-4"}`}>
+        {!hideTerms && (
+          <div className="space-y-2">
+            <Label>Plazo del crédito *</Label>
+            <Select
+              value={String(mesesCredito)}
+              onValueChange={(v) => onMesesCreditoChange(Number(v))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 mes</SelectItem>
+                <SelectItem value="2">2 meses</SelectItem>
+                <SelectItem value="3">3 meses</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors?.meses_credito && (
+              <p className="text-sm text-destructive">{errors.meses_credito}</p>
+            )}
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <Label>Periodicidad de pagos *</Label>
-          <Select value={periodicidad} onValueChange={onPeriodicidadChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="semanal">Semanal</SelectItem>
-              <SelectItem value="quincenal">Quincenal</SelectItem>
-              <SelectItem value="mensual">Mensual</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors?.periodicidad && (
-            <p className="text-sm text-destructive">{errors.periodicidad}</p>
-          )}
-        </div>
+        {!hideTerms && (
+          <div className="space-y-2">
+            <Label>Periodicidad de pagos *</Label>
+            <Select value={periodicidad} onValueChange={onPeriodicidadChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semanal">Semanal</SelectItem>
+                <SelectItem value="quincenal">Quincenal</SelectItem>
+                <SelectItem value="mensual">Mensual</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors?.periodicidad && (
+              <p className="text-sm text-destructive">{errors.periodicidad}</p>
+            )}
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <Label>Fecha del primer pago *</Label>
-          <Input
-            type="date"
-            value={fechaPrimerPago}
-            onChange={(e) => onFechaPrimerPagoChange(e.target.value)}
-          />
-          {errors?.fecha_primer_pago && (
-            <p className="text-sm text-destructive">
-              {errors.fecha_primer_pago}
-            </p>
-          )}
-        </div>
+        {!hideTerms && (
+          <div className="space-y-2">
+            <Label>Fecha del primer pago *</Label>
+            <Input
+              type="date"
+              min={new Date().toISOString().split("T")[0]}
+              value={fechaPrimerPago}
+              onChange={(e) => onFechaPrimerPagoChange(e.target.value)}
+            />
+            {errors?.fecha_primer_pago && (
+              <p className="text-sm text-destructive">
+                {errors.fecha_primer_pago}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2 flex flex-col justify-end">
           <div className="flex items-center space-x-2">

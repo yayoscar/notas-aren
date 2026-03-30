@@ -32,8 +32,8 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
             p.marca.toLowerCase().includes(s))
       )
       .sort((a, b) => {
-        // Sort: nuevos first, then testers, then parciales
-        const order: Record<string, number> = { nuevo: 0, tester: 1, parcial: 2 }
+        // Sort: nuevos first, then parciales, then segundas
+        const order: Record<string, number> = { nuevo: 0, parcial: 1, segunda: 2 }
         return (order[a.estado_producto] ?? 0) - (order[b.estado_producto] ?? 0)
       })
       .slice(0, 10)
@@ -78,7 +78,7 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
                       <p className="text-sm font-medium">{p.nombre}</p>
                       {p.estado_producto && p.estado_producto !== "nuevo" && (
                         <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                          {p.estado_producto === "tester" ? "Tester" : "Parcial"}
+                          {p.estado_producto === "parcial" ? "Parcial" : "Segunda"}
                         </Badge>
                       )}
                     </div>

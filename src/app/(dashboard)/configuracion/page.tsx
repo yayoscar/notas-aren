@@ -1,0 +1,85 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useConfigValue, useUpdateConfigValue } from "@/hooks/useConfiguracion"
+import { useVendedorActual } from "@/hooks/useVendedorActual"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Save } from "lucide-react"
+
+export default function ConfiguracionPage() {
+  const { isAdmin, isLoading: isLoadingVendedor } = useVendedorActual()
+  const { data: mensajeActual, isLoading: isLoadingConfig } = useConfigValue("recordatorio_whatsapp")
+  const updateConfig = useUpdateConfigValue()
+
+  const [mensaje, setMensaje] = useState("")
+
+  useEffect(() => {
+    if (mensajeActual) setMensaje(mensajeActual)
+  }, [mensajeActual])
+
+  if (isLoadingVendedor) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Configuracion</h1>
+        <p className="text-muted-foreground">No tienes permisos para acceder a esta seccion.</p>
+      </div>
+    )
+  }
+
+  function handleGuardar() {
+    updateConfig.mutate({ key: "recordatorio_whatsapp", value: mensaje })
+  }
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Configuracion</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mensaje de recordatorio de pago</CardTitle>
+          <CardDescription>
+            Este mensaje se enviara por WhatsApp cuando uses el boton de recordatorio en la vista de cobranza.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingConfig ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <>
+              <Textarea
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+                rows={5}
+                placeholder="Escribe el mensaje de recordatorio..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Variables disponibles: <code className="bg-muted px-1 rounded">{"{nombre}"}</code>{" "}
+                <code className="bg-muted px-1 rounded">{"{monto}"}</code>{" "}
+                <code className="bg-muted px-1 rounded">{"{fecha_pago}"}</code>{" "}
+                <code className="bg-muted px-1 rounded">{"{saldo}"}</code>
+              </p>
+              <div className="flex justify-end">
+                <Button onClick={handleGuardar} disabled={updateConfig.isPending || mensaje === mensajeActual}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateConfig.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

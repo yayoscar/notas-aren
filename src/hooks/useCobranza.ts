@@ -9,102 +9,91 @@ import {
   startOfMonth,
   endOfMonth,
   lastDayOfMonth,
-  addWeeks,
-  addMonths,
-  subWeeks,
-  subMonths,
   setDate,
-  isWithinInterval,
-  parseISO,
   format,
+  parseISO,
+  isWithinInterval,
 } from "date-fns"
-import type { CreditoConSaldo } from "@/hooks/usePagos"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type CreditoCobranza = CreditoConSaldo & {
-  clientes: { nombre: string; telefono: string; ciudad: string | null } | null
-  atendido: boolean
+export type CreditoCobranza = {
+  id: string
+  cliente_id: string
+  saldo_total: number
+  saldo_pagado: number
+  saldo_pendiente: number
+  saldo_restante: number
+  meses_credito: number
+  periodicidad: string
+  fecha_inicio: string
+  fecha_siguiente_pago: string | null
   fecha_cobro_especifica: string | null
+  estado: string
+  created_at: string
+  clientes: { nombre: string; telefono: string | null; ciudad: string | null } | null
+  vendedores: { nombre: string } | null
+  vendedor_id: string | null
+  atendido: boolean
   periodo_inicio: string
   periodo_fin: string
   abono_en_periodo: boolean
+  ultimo_pago_fecha: string | null
+  ultimo_pago_monto: number | null
+  cuota_programada: number
+  estado_periodo: "al_dia" | "atrasado" | "sin_abonos"
 }
 
-export type Periodo = { inicio: Date; fin: Date }
-export type Frecuencia = "semanal" | "quincenal" | "mensual"
+export type RangoTipo = "semana" | "quincena" | "mes" | "personalizado"
 
 // ---------------------------------------------------------------------------
-// Period helpers
+// Range helpers
 // ---------------------------------------------------------------------------
 
-export function calcularPeriodoActual(
-  frecuencia: Frecuencia,
-  referencia: Date = new Date()
-): Periodo {
-  switch (frecuencia) {
-    case "semanal":
-      return {
-        inicio: startOfWeek(referencia, { weekStartsOn: 1 }),
-        fin: endOfWeek(referencia, { weekStartsOn: 1 }),
-      }
-    case "quincenal": {
+export function calcularRangoPredefinido(tipo: RangoTipo, referencia: Date = new Date()): { inicio: string; fin: string } {
+  switch (tipo) {
+    case "semana": {
+      const inicio = startOfWeek(referencia, { weekStartsOn: 1 })
+      const fin = endOfWeek(referencia, { weekStartsOn: 1 })
+      return { inicio: format(inicio, "yyyy-MM-dd"), fin: format(fin, "yyyy-MM-dd") }
+    }
+    case "quincena": {
       const day = referencia.getDate()
-      if (day <= 14) {
+      if (day <= 15) {
         const inicio = startOfMonth(referencia)
-        const fin = setDate(referencia, 14)
-        return { inicio, fin }
+        const fin = setDate(referencia, 15)
+        return { inicio: format(inicio, "yyyy-MM-dd"), fin: format(fin, "yyyy-MM-dd") }
       }
-      const inicio = setDate(referencia, 15)
+      const inicio = setDate(referencia, 16)
       const fin = lastDayOfMonth(referencia)
-      return { inicio, fin }
+      return { inicio: format(inicio, "yyyy-MM-dd"), fin: format(fin, "yyyy-MM-dd") }
     }
-    case "mensual":
-      return {
-        inicio: startOfMonth(referencia),
-        fin: endOfMonth(referencia),
-      }
+    case "mes": {
+      const inicio = startOfMonth(referencia)
+      const fin = endOfMonth(referencia)
+      return { inicio: format(inicio, "yyyy-MM-dd"), fin: format(fin, "yyyy-MM-dd") }
+    }
+    default:
+      return { inicio: format(referencia, "yyyy-MM-dd"), fin: format(referencia, "yyyy-MM-dd") }
   }
 }
 
-export function calcularPeriodoConOffset(
-  frecuencia: Frecuencia,
-  offset: number
-): Periodo {
-  let ref = new Date()
-  if (offset !== 0) {
-    switch (frecuencia) {
-      case "semanal":
-        ref = offset > 0 ? addWeeks(ref, offset) : subWeeks(ref, Math.abs(offset))
-        break
-      case "quincenal": {
-        // Move by half-months
-        for (let i = 0; i < Math.abs(offset); i++) {
-          const day = ref.getDate()
-          if (offset > 0) {
-            if (day <= 14) {
-              ref = setDate(ref, 15)
-            } else {
-              ref = setDate(addMonths(ref, 1), 1)
-            }
-          } else {
-            if (day >= 15) {
-              ref = setDate(ref, 1)
-            } else {
-              ref = setDate(subMonths(ref, 1), 15)
-            }
-          }
-        }
-        break
-      }
-      case "mensual":
-        ref = offset > 0 ? addMonths(ref, offset) : subMonths(ref, Math.abs(offset))
-        break
-    }
-  }
-  return calcularPeriodoActual(frecuencia, ref)
+export function formatRango(inicio: string, fin: string): string {
+  const i = parseISO(inicio)
+  const f = parseISO(fin)
+  return `${format(i, "dd MMM")} – ${format(f, "dd MMM yyyy")}`
+}
+
+// Keep backward compat exports
+export type Frecuencia = "semanal" | "quincenal" | "mensual"
+export type Periodo = { inicio: Date; fin: Date }
+
+export function calcularPeriodoActual(frecuencia: Frecuencia, referencia: Date = new Date()): Periodo {
+  const r = frecuencia === "semanal" ? "semana" : frecuencia === "quincenal" ? "quincena" : "mes"
+  const { inicio, fin } = calcularRangoPredefinido(r as RangoTipo, referencia)
+  return { inicio: parseISO(inicio), fin: parseISO(fin) }
 }
 
 export function formatPeriodo(periodo: Periodo): string {
@@ -112,221 +101,170 @@ export function formatPeriodo(periodo: Periodo): string {
 }
 
 // ---------------------------------------------------------------------------
-// Queries
+// Main Query
 // ---------------------------------------------------------------------------
 
-export function useCreditosCobranza(
-  frecuencia: Frecuencia,
-  offset: number = 0
-) {
+export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
   const supabase = createClient()
-  const periodo = calcularPeriodoConOffset(frecuencia, offset)
-  const periodoInicioStr = format(periodo.inicio, "yyyy-MM-dd")
-  const periodoFinStr = format(periodo.fin, "yyyy-MM-dd")
 
-  const query = useQuery<CreditoCobranza[]>({
-    queryKey: ["cobranza", frecuencia, periodoInicioStr],
+  return useQuery<CreditoCobranza[]>({
+    queryKey: ["cobranza_v2", fechaInicio, fechaFin],
     queryFn: async () => {
-      // 1. Fetch active credits with matching frequency
-      const { data: ventas, error: ventasError } = await supabase
-        .from("ventas")
-        .select(`*, clientes(nombre, telefono, ciudad_id)`)
-        .eq("tipo_venta", "credito")
-        .eq("estado_credito", "activo")
-        .eq("periodicidad", frecuencia)
-        .order("created_at", { ascending: false })
-      if (ventasError) throw ventasError
+      // 1. Fetch active lineas_credito with pending balance
+      const { data: lineas, error: lineasError } = await supabase
+        .from("lineas_credito")
+        .select("*, clientes(nombre, telefono, cat_ciudad(nombre)), vendedores(nombre)")
+        .eq("estado", "activa")
+        .order("fecha_siguiente_pago", { ascending: true, nullsFirst: false })
+      if (lineasError) throw lineasError
 
-      const ventaIds = (ventas ?? []).map((v) => v.id)
-      if (ventaIds.length === 0) return []
+      if (!lineas || lineas.length === 0) return []
 
-      // 2. Fetch payments to compute balances
-      const { data: pagos, error: pagosError } = await supabase
+      const lineaIds = lineas.map((l) => l.id)
+
+      // 2. Fetch all pagos for these lineas to find ultimo pago and detect abonos in period
+      const { data: allPagos, error: pagosError } = await supabase
         .from("pagos")
-        .select("venta_id, monto, fecha")
-        .in("venta_id", ventaIds)
+        .select("linea_credito_id, monto, fecha")
+        .in("linea_credito_id", lineaIds)
+        .order("fecha", { ascending: false })
       if (pagosError) throw pagosError
 
       // 3. Fetch attendance records for this period
       const { data: seguimientos, error: segError } = await supabase
         .from("cobranza_seguimiento")
         .select("*")
-        .eq("periodo_inicio", periodoInicioStr)
-        .in("venta_id", ventaIds)
+        .eq("periodo_inicio", fechaInicio)
+        .in("linea_credito_id", lineaIds)
       if (segError) throw segError
 
-      // 4. Fetch city names for display
-      const ciudadIds = Array.from(
-        new Set((ventas ?? []).map((v) => v.clientes?.ciudad_id).filter(Boolean))
-      )
-      let ciudadMap: Record<string, string> = {}
-      if (ciudadIds.length > 0) {
-        const { data: ciudades } = await supabase
-          .from("cat_ciudad")
-          .select("id, nombre")
-          .in("id", ciudadIds)
-        ciudadMap = (ciudades ?? []).reduce(
-          (acc, c) => ({ ...acc, [c.id]: c.nombre }),
-          {} as Record<string, string>
-        )
+      const segMap = new Map((seguimientos ?? []).map((s) => [s.linea_credito_id, s]))
+
+      // Group pagos by linea
+      const pagosByLinea = new Map<string, { fecha: string; monto: number }[]>()
+      for (const p of allPagos ?? []) {
+        if (!p.linea_credito_id) continue
+        const arr = pagosByLinea.get(p.linea_credito_id) ?? []
+        arr.push({ fecha: p.fecha, monto: p.monto })
+        pagosByLinea.set(p.linea_credito_id, arr)
       }
 
-      // 5. Compute balances & merge
-      const pagosPorVenta: Record<string, number> = {}
-      const pagosEnPeriodo = new Set<string>()
-      for (const p of pagos ?? []) {
-        pagosPorVenta[p.venta_id] = (pagosPorVenta[p.venta_id] || 0) + p.monto
-        try {
-          const fechaPago = parseISO(p.fecha)
-          if (
-            isWithinInterval(fechaPago, {
-              start: periodo.inicio,
-              end: periodo.fin,
-            })
-          ) {
-            pagosEnPeriodo.add(p.venta_id)
+      const rangoInicio = parseISO(fechaInicio)
+      const rangoFin = parseISO(fechaFin)
+
+      return lineas
+        .map((l) => {
+          const saldoPendiente = l.saldo_total - l.saldo_pagado
+          if (saldoPendiente <= 0) return null
+
+          // Check if fecha_siguiente_pago falls within range
+          if (!l.fecha_siguiente_pago) return null
+          try {
+            const fsp = parseISO(l.fecha_siguiente_pago)
+            // Include if fecha_siguiente_pago <= rangoFin (includes past due)
+            if (fsp > rangoFin) return null
+          } catch {
+            return null
           }
-        } catch {
-          // skip invalid dates
-        }
-      }
 
-      const segMap = new Map(
-        (seguimientos ?? []).map((s) => [s.venta_id, s])
-      )
+          // Calculate cuota
+          const factor = l.periodicidad === "semanal" ? 4 : l.periodicidad === "quincenal" ? 2 : 1
+          const pagosRestantes = Math.max(1, l.meses_credito * factor)
+          const cuota = Math.ceil((saldoPendiente / pagosRestantes) * 100) / 100
 
-      return (ventas ?? [])
-        .map((v) => {
-          const totalAbonado = pagosPorVenta[v.id] || 0
-          const saldoRestante = v.total - totalAbonado
-          const seg = segMap.get(v.id)
-          const ciudadNombre = v.clientes?.ciudad_id
-            ? ciudadMap[v.clientes.ciudad_id] ?? null
-            : null
+          // Find ultimo pago
+          const pagos = pagosByLinea.get(l.id) ?? []
+          const ultimoPago = pagos.length > 0 ? pagos[0] : null // already sorted desc
+
+          // Determine estado_periodo
+          let estadoPeriodo: "al_dia" | "atrasado" | "sin_abonos" = "sin_abonos"
+          if (ultimoPago) {
+            try {
+              const fechaUltimo = parseISO(ultimoPago.fecha)
+              if (isWithinInterval(fechaUltimo, { start: rangoInicio, end: rangoFin })) {
+                estadoPeriodo = "al_dia"
+              } else {
+                estadoPeriodo = "atrasado"
+              }
+            } catch {
+              estadoPeriodo = "atrasado"
+            }
+          }
+
+          // Check abono in period
+          const abonoEnPeriodo = pagos.some((p) => {
+            try {
+              return isWithinInterval(parseISO(p.fecha), { start: rangoInicio, end: rangoFin })
+            } catch {
+              return false
+            }
+          })
+
+          const seg = segMap.get(l.id)
+
           return {
-            ...v,
-            clientes: v.clientes
+            id: l.id,
+            cliente_id: l.cliente_id,
+            saldo_total: l.saldo_total,
+            saldo_pagado: l.saldo_pagado,
+            saldo_pendiente: saldoPendiente,
+            saldo_restante: saldoPendiente,
+            meses_credito: l.meses_credito,
+            periodicidad: l.periodicidad,
+            fecha_inicio: l.fecha_inicio,
+            fecha_siguiente_pago: l.fecha_siguiente_pago,
+            fecha_cobro_especifica: l.fecha_cobro_especifica ?? null,
+            estado: l.estado,
+            created_at: l.created_at,
+            clientes: l.clientes
               ? {
-                  nombre: v.clientes.nombre,
-                  telefono: v.clientes.telefono,
-                  ciudad: ciudadNombre,
+                  nombre: (l.clientes as Record<string, unknown>).nombre as string,
+                  telefono: (l.clientes as Record<string, unknown>).telefono as string | null,
+                  ciudad: ((l.clientes as Record<string, unknown>).cat_ciudad as { nombre: string } | null)?.nombre ?? null,
                 }
               : null,
-            total_abonado: totalAbonado,
-            saldo_restante: saldoRestante,
+            vendedores: l.vendedores
+              ? { nombre: (l.vendedores as Record<string, unknown>).nombre as string }
+              : null,
+            vendedor_id: l.vendedor_id ?? null,
             atendido: seg?.atendido ?? false,
-            fecha_cobro_especifica: v.fecha_cobro_especifica ?? null,
-            periodo_inicio: periodoInicioStr,
-            periodo_fin: periodoFinStr,
-            abono_en_periodo: pagosEnPeriodo.has(v.id),
+            periodo_inicio: fechaInicio,
+            periodo_fin: fechaFin,
+            abono_en_periodo: abonoEnPeriodo,
+            ultimo_pago_fecha: ultimoPago?.fecha ?? null,
+            ultimo_pago_monto: ultimoPago?.monto ?? null,
+            cuota_programada: cuota,
+            estado_periodo: estadoPeriodo,
           } as CreditoCobranza
         })
-        .filter((c) => c.saldo_restante > 0)
-        .filter((c) => !c.abono_en_periodo)
+        .filter((c): c is CreditoCobranza => c !== null)
+        .sort((a, b) => {
+          const fa = a.fecha_siguiente_pago ?? "9999"
+          const fb = b.fecha_siguiente_pago ?? "9999"
+          return fa.localeCompare(fb)
+        })
     },
+    enabled: !!fechaInicio && !!fechaFin,
   })
+}
 
-  return { ...query, periodo, periodoInicioStr, periodoFinStr }
+// Keep old hooks for backward compat (used by existing components)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function useCreditosCobranza(frecuencia: Frecuencia, _offset: number = 0) {
+  const rango = calcularRangoPredefinido(
+    frecuencia === "semanal" ? "semana" : frecuencia === "quincenal" ? "quincena" : "mes"
+  )
+  const result = useCreditosCobranzaV2(rango.inicio, rango.fin)
+  const periodo = calcularPeriodoActual(frecuencia)
+  return { ...result, periodo, periodoInicioStr: rango.inicio, periodoFinStr: rango.fin }
 }
 
 export function useAgendaDiaria(fecha: string) {
-  const supabase = createClient()
-
-  return useQuery<CreditoCobranza[]>({
-    queryKey: ["cobranza_agenda", fecha],
-    queryFn: async () => {
-      // Fetch all active credits
-      const { data: ventas, error: ventasError } = await supabase
-        .from("ventas")
-        .select(`*, clientes(nombre, telefono, ciudad_id)`)
-        .eq("tipo_venta", "credito")
-        .eq("estado_credito", "activo")
-        .order("created_at", { ascending: false })
-      if (ventasError) throw ventasError
-
-      const ventaIds = (ventas ?? []).map((v) => v.id)
-      if (ventaIds.length === 0) return []
-
-      // Payments
-      const { data: pagos, error: pagosError } = await supabase
-        .from("pagos")
-        .select("venta_id, monto")
-        .in("venta_id", ventaIds)
-      if (pagosError) throw pagosError
-
-      const pagosPorVenta: Record<string, number> = {}
-      for (const p of pagos ?? []) {
-        pagosPorVenta[p.venta_id] = (pagosPorVenta[p.venta_id] || 0) + p.monto
-      }
-
-      // City names
-      const ciudadIds = Array.from(
-        new Set((ventas ?? []).map((v) => v.clientes?.ciudad_id).filter(Boolean))
-      )
-      let ciudadMap: Record<string, string> = {}
-      if (ciudadIds.length > 0) {
-        const { data: ciudades } = await supabase
-          .from("cat_ciudad")
-          .select("id, nombre")
-          .in("id", ciudadIds)
-        ciudadMap = (ciudades ?? []).reduce(
-          (acc, c) => ({ ...acc, [c.id]: c.nombre }),
-          {} as Record<string, string>
-        )
-      }
-
-      const fechaRef = parseISO(fecha)
-
-      return (ventas ?? [])
-        .map((v) => {
-          const totalAbonado = pagosPorVenta[v.id] || 0
-          const saldoRestante = v.total - totalAbonado
-          const ciudadNombre = v.clientes?.ciudad_id
-            ? ciudadMap[v.clientes.ciudad_id] ?? null
-            : null
-
-          // Check if credit has specific date matching today
-          const tieneEspecifica = v.fecha_cobro_especifica === fecha
-
-          // Check if today falls within this credit's current period
-          const freq = v.periodicidad as Frecuencia | null
-          let enPeriodo = false
-          if (freq) {
-            const periodo = calcularPeriodoActual(freq, fechaRef)
-            enPeriodo = isWithinInterval(fechaRef, {
-              start: periodo.inicio,
-              end: periodo.fin,
-            })
-          }
-
-          if (!tieneEspecifica && !enPeriodo) return null
-
-          return {
-            ...v,
-            clientes: v.clientes
-              ? {
-                  nombre: v.clientes.nombre,
-                  telefono: v.clientes.telefono,
-                  ciudad: ciudadNombre,
-                }
-              : null,
-            total_abonado: totalAbonado,
-            saldo_restante: saldoRestante,
-            atendido: false,
-            fecha_cobro_especifica: v.fecha_cobro_especifica ?? null,
-            periodo_inicio: fecha,
-            periodo_fin: fecha,
-            abono_en_periodo: false,
-          } as CreditoCobranza
-        })
-        .filter((c): c is CreditoCobranza => c !== null && c.saldo_restante > 0)
-    },
-    enabled: !!fecha,
-  })
+  return useCreditosCobranzaV2(fecha, fecha)
 }
 
 // ---------------------------------------------------------------------------
-// Mutations
+// Mutations (kept as-is)
 // ---------------------------------------------------------------------------
 
 export function useMarcarAtendido() {
@@ -335,7 +273,7 @@ export function useMarcarAtendido() {
 
   return useMutation({
     mutationFn: async (input: {
-      venta_id: string
+      linea_credito_id: string
       periodo_inicio: string
       periodo_fin: string
       frecuencia: string
@@ -345,14 +283,14 @@ export function useMarcarAtendido() {
         .from("cobranza_seguimiento")
         .upsert(
           {
-            venta_id: input.venta_id,
+            linea_credito_id: input.linea_credito_id,
             periodo_inicio: input.periodo_inicio,
             periodo_fin: input.periodo_fin,
             frecuencia: input.frecuencia,
             atendido: input.atendido,
             fecha_atendido: input.atendido ? new Date().toISOString() : null,
           },
-          { onConflict: "venta_id,periodo_inicio" }
+          { onConflict: "linea_credito_id,periodo_inicio" }
         )
         .select()
         .single()
@@ -360,7 +298,7 @@ export function useMarcarAtendido() {
       return data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cobranza"] })
+      queryClient.invalidateQueries({ queryKey: ["cobranza_v2"] })
     },
     onError: () => toast.error("Error al actualizar seguimiento"),
   })
@@ -372,19 +310,17 @@ export function useAsignarFechaCobro() {
 
   return useMutation({
     mutationFn: async (input: {
-      venta_id: string
+      linea_credito_id: string
       fecha_cobro_especifica: string | null
     }) => {
       const { error } = await supabase
-        .from("ventas")
+        .from("lineas_credito")
         .update({ fecha_cobro_especifica: input.fecha_cobro_especifica })
-        .eq("id", input.venta_id)
+        .eq("id", input.linea_credito_id)
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cobranza"] })
-      queryClient.invalidateQueries({ queryKey: ["cobranza_agenda"] })
-      queryClient.invalidateQueries({ queryKey: ["creditos_activos"] })
+      queryClient.invalidateQueries({ queryKey: ["cobranza_v2"] })
       toast.success("Fecha de cobro asignada")
     },
     onError: () => toast.error("Error al asignar fecha de cobro"),

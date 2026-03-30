@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCreditosCliente } from "@/hooks/usePagos"
+import { useQuery } from "@tanstack/react-query"
+import { createClient } from "@/lib/supabase/client"
 import { formatMoney } from "@/lib/utils"
+import type { LineaCredito } from "@/lib/supabase/types"
 
 interface Props {
   clienteId: string
@@ -33,15 +35,29 @@ export function HistorialCrediticioDialog({
   open,
   onOpenChange,
 }: Props) {
-  const { data: creditos, isLoading } = useCreditosCliente(clienteId)
+  const supabase = createClient()
+
+  const { data: lineas, isLoading } = useQuery<LineaCredito[]>({
+    queryKey: ["historial_crediticio", clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lineas_credito")
+        .select("*")
+        .eq("cliente_id", clienteId)
+        .order("created_at", { ascending: false })
+      if (error) throw error
+      return data as LineaCredito[]
+    },
+    enabled: !!clienteId && open,
+  })
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-2xl">
+      <AlertDialogContent className="sm:max-w-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle>Historial crediticio</AlertDialogTitle>
           <AlertDialogDescription>
-            Créditos del cliente seleccionado
+            Líneas de crédito del cliente seleccionado
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -51,55 +67,111 @@ export function HistorialCrediticioDialog({
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
-        ) : !creditos || creditos.length === 0 ? (
+        ) : !lineas || lineas.length === 0 ? (
           <p className="py-4 text-center text-muted-foreground">
             Sin historial de créditos
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Folio</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Abonado</TableHead>
-                <TableHead className="text-right">Restante</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {creditos.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.folio}</TableCell>
-                  <TableCell>
-                    {new Date(c.fecha).toLocaleDateString("es-MX")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(c.total)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(c.total_abonado)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(c.saldo_restante)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        c.estado_credito === "liquidado"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {c.estado_credito === "liquidado"
-                        ? "Pagado"
-                        : "Activo"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <>
+            {/* Mobile card view */}
+            <div className="space-y-2 md:hidden">
+              {lineas.map((lc) => {
+                const saldoPendiente = lc.saldo_total - lc.saldo_pagado
+                return (
+                  <div key={lc.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {new Date(lc.fecha_inicio).toLocaleDateString("es-MX")}
+                      </span>
+                      <Badge
+                        variant={
+                          lc.estado === "liquidada" ? "secondary" : "default"
+                        }
+                      >
+                        {lc.estado === "liquidada" ? "Liquidada" : "Activa"}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center mt-2">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Saldo total</p>
+                        <p className="text-sm font-mono tabular-nums">
+                          {formatMoney(lc.saldo_total)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Pagado</p>
+                        <p className="text-sm font-mono tabular-nums text-green-600">
+                          {formatMoney(lc.saldo_pagado)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Pendiente</p>
+                        <p className="text-sm font-mono tabular-nums text-orange-600">
+                          {formatMoney(saldoPendiente)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Periodicidad: {lc.periodicidad}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha inicio</TableHead>
+                    <TableHead>Periodicidad</TableHead>
+                    <TableHead className="text-right">Saldo total</TableHead>
+                    <TableHead className="text-right">Pagado</TableHead>
+                    <TableHead className="text-right">Pendiente</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lineas.map((lc) => {
+                    const saldoPendiente = lc.saldo_total - lc.saldo_pagado
+                    return (
+                      <TableRow key={lc.id}>
+                        <TableCell>
+                          {new Date(lc.fecha_inicio).toLocaleDateString("es-MX")}
+                        </TableCell>
+                        <TableCell className="capitalize">
+                          {lc.periodicidad}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(lc.saldo_total)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(lc.saldo_pagado)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(saldoPendiente)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              lc.estado === "liquidada"
+                                ? "secondary"
+                                : "default"
+                            }
+                          >
+                            {lc.estado === "liquidada"
+                              ? "Liquidada"
+                              : "Activa"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
 
         <AlertDialogFooter>

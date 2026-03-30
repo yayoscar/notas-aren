@@ -13,7 +13,7 @@ import type { CreditoCobranza } from "@/hooks/useCobranza"
 const styles = StyleSheet.create({
   page: {
     padding: 30,
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: "Helvetica",
   },
   header: {
@@ -47,16 +47,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 4,
   },
-  colNum: { width: "5%" },
-  colNombre: { width: "28%" },
-  colTelefono: { width: "17%" },
-  colCiudad: { width: "17%" },
-  colPendiente: { width: "16.5%", textAlign: "right" },
-  colSaldo: { width: "16.5%", textAlign: "right" },
+  colNum: { width: "4%" },
+  colNombre: { width: "20%" },
+  colTelefono: { width: "13%" },
+  colCuota: { width: "11%", textAlign: "right" },
+  colPendiente: { width: "12%", textAlign: "right" },
+  colSigPago: { width: "10%" },
+  colUltAbono: { width: "18%" },
+  colEstado: { width: "12%", textAlign: "center" },
   headerText: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 8,
+    fontSize: 7,
   },
+  bold: {
+    fontFamily: "Helvetica-Bold",
+  },
+  green: { color: "#16a34a" },
+  orange: { color: "#ea580c" },
+  gray: { color: "#9ca3af" },
   footer: {
     marginTop: 15,
     borderTop: "1 solid #d1d5db",
@@ -78,10 +86,23 @@ interface Props {
   fechaGeneracion: string
 }
 
-const freqLabels: Record<string, string> = {
+const rangoLabels: Record<string, string> = {
+  semana: "Semanal",
+  quincena: "Quincenal",
+  mes: "Mensual",
+  personalizado: "Personalizado",
   semanal: "Semanal",
   quincenal: "Quincenal",
   mensual: "Mensual",
+}
+
+function formatFecha(fecha: string | null): string {
+  if (!fecha) return "—"
+  try {
+    return new Date(fecha + "T12:00:00").toLocaleDateString("es-MX")
+  } catch {
+    return "—"
+  }
 }
 
 export function CobranzaListaPDF({
@@ -91,7 +112,10 @@ export function CobranzaListaPDF({
   periodoFin,
   fechaGeneracion,
 }: Props) {
-  const totalPendiente = creditos.reduce((s, c) => s + c.saldo_restante, 0)
+  const totalPendiente = creditos.reduce((s, c) => s + c.saldo_pendiente, 0)
+  const alDia = creditos.filter((c) => c.estado_periodo === "al_dia").length
+  const atrasados = creditos.filter((c) => c.estado_periodo === "atrasado").length
+  const sinAbonos = creditos.filter((c) => c.estado_periodo === "sin_abonos").length
 
   return (
     <Document>
@@ -99,7 +123,7 @@ export function CobranzaListaPDF({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
-            Lista de Cobranza — {freqLabels[frecuencia] ?? frecuencia}
+            Lista de Cobranza — {rangoLabels[frecuencia] ?? frecuencia}
           </Text>
           <Text style={styles.subtitle}>
             Periodo: {periodoInicio} — {periodoFin}
@@ -110,17 +134,13 @@ export function CobranzaListaPDF({
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.headerText, styles.colNum]}>#</Text>
-            <Text style={[styles.headerText, styles.colNombre]}>Nombre</Text>
-            <Text style={[styles.headerText, styles.colTelefono]}>
-              Teléfono
-            </Text>
-            <Text style={[styles.headerText, styles.colCiudad]}>Ciudad</Text>
-            <Text style={[styles.headerText, styles.colPendiente]}>
-              Total crédito
-            </Text>
-            <Text style={[styles.headerText, styles.colSaldo]}>
-              Saldo pendiente
-            </Text>
+            <Text style={[styles.headerText, styles.colNombre]}>Cliente</Text>
+            <Text style={[styles.headerText, styles.colTelefono]}>Teléfono</Text>
+            <Text style={[styles.headerText, styles.colCuota]}>Cuota</Text>
+            <Text style={[styles.headerText, styles.colPendiente]}>Pendiente</Text>
+            <Text style={[styles.headerText, styles.colSigPago]}>Sig. pago</Text>
+            <Text style={[styles.headerText, styles.colUltAbono]}>Último abono</Text>
+            <Text style={[styles.headerText, styles.colEstado]}>Estado</Text>
           </View>
 
           {creditos.map((c, i) => (
@@ -132,12 +152,35 @@ export function CobranzaListaPDF({
               <Text style={styles.colTelefono}>
                 {c.clientes?.telefono ?? "—"}
               </Text>
-              <Text style={styles.colCiudad}>
-                {c.clientes?.ciudad ?? "—"}
+              <Text style={[styles.colCuota, styles.bold]}>
+                {formatMoney(c.cuota_programada)}
               </Text>
-              <Text style={styles.colPendiente}>{formatMoney(c.total)}</Text>
-              <Text style={styles.colSaldo}>
-                {formatMoney(c.saldo_restante)}
+              <Text style={[styles.colPendiente, styles.orange]}>
+                {formatMoney(c.saldo_pendiente)}
+              </Text>
+              <Text style={styles.colSigPago}>
+                {formatFecha(c.fecha_siguiente_pago)}
+              </Text>
+              <Text style={styles.colUltAbono}>
+                {c.ultimo_pago_fecha
+                  ? `${formatFecha(c.ultimo_pago_fecha)} (${formatMoney(c.ultimo_pago_monto ?? 0)})`
+                  : "—"}
+              </Text>
+              <Text
+                style={[
+                  styles.colEstado,
+                  c.estado_periodo === "al_dia"
+                    ? styles.green
+                    : c.estado_periodo === "atrasado"
+                      ? styles.orange
+                      : styles.gray,
+                ]}
+              >
+                {c.estado_periodo === "al_dia"
+                  ? "Al día"
+                  : c.estado_periodo === "atrasado"
+                    ? "Atrasado"
+                    : "Sin abonos"}
               </Text>
             </View>
           ))}
@@ -146,8 +189,7 @@ export function CobranzaListaPDF({
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Total clientes: {creditos.length} | Total pendiente:{" "}
-            {formatMoney(totalPendiente)}
+            Total: {creditos.length} clientes | Pendiente: {formatMoney(totalPendiente)} | Al día: {alDia} | Atrasados: {atrasados} | Sin abonos: {sinAbonos}
           </Text>
           <Text style={styles.footerText}>
             Generado: {fechaGeneracion} — Notas de Aren

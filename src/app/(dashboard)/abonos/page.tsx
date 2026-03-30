@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useCreditosCliente, useCrearAbono } from "@/hooks/usePagos"
+import { useLineaCreditoCliente } from "@/hooks/useLineaCredito"
+import { useCrearAbono } from "@/hooks/usePagos"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,6 @@ export default function AbonosPage() {
 
   const [step, setStep] = useState(1)
   const [clienteId, setClienteId] = useState("")
-  const [ventaId, setVentaId] = useState("")
 
   const [abonoMonto, setAbonoMonto] = useState(0)
   const [abonoTipo, setAbonoTipo] = useState("efectivo")
@@ -31,13 +31,15 @@ export default function AbonosPage() {
     new Date().toISOString().split("T")[0]
   )
 
-  const { data: creditos } = useCreditosCliente(clienteId)
+  const { data: linea, isLoading: lineaLoading } =
+    useLineaCreditoCliente(clienteId)
 
-  const creditoSeleccionado = creditos?.find((c) => c.id === ventaId)
+  const saldoPendiente = linea
+    ? linea.saldo_total - linea.saldo_pagado
+    : 0
 
   function handleSelectCliente(id: string) {
     setClienteId(id)
-    setVentaId("")
     if (id) {
       setStep(2)
     } else {
@@ -45,22 +47,21 @@ export default function AbonosPage() {
     }
   }
 
-  function handleSelectCredito(id: string) {
-    setVentaId(id)
+  function handleContinueToAbono() {
     setStep(3)
   }
 
   function handleRegistrar() {
-    if (!vendedor || !creditoSeleccionado || abonoMonto <= 0) return
+    if (!vendedor || !linea || abonoMonto <= 0) return
 
-    if (abonoMonto > creditoSeleccionado.saldo_restante) {
-      toast.error("El monto no puede ser mayor al saldo restante")
+    if (abonoMonto > saldoPendiente) {
+      toast.error("El monto no puede ser mayor al saldo pendiente")
       return
     }
 
     crearAbono.mutate(
       {
-        venta_id: ventaId,
+        linea_credito_id: linea.id,
         monto: abonoMonto,
         tipo_pago: abonoTipo,
         cuenta_bancaria_id: abonoCuenta,
@@ -71,28 +72,31 @@ export default function AbonosPage() {
       {
         onSuccess: async () => {
           try {
+            const clienteNombre = linea.clientes?.nombre ?? ""
             const blob = await pdf(
               <AbonoTicketPDF
-                folio={creditoSeleccionado!.folio}
-                clienteNombre={creditoSeleccionado!.clientes?.nombre ?? ""}
+                folio={linea.id.slice(0, 8).toUpperCase()}
+                clienteNombre={clienteNombre}
                 fecha={abonoFecha}
                 monto={abonoMonto}
                 tipoPago={abonoTipo}
-                totalCredito={creditoSeleccionado!.total}
-                totalAbonado={creditoSeleccionado!.total_abonado + abonoMonto}
-                saldoRestante={creditoSeleccionado!.saldo_restante - abonoMonto}
-                saldoAnterior={creditoSeleccionado!.total_abonado}
+                totalCredito={linea.saldo_total}
+                totalAbonado={linea.saldo_pagado + abonoMonto}
+                saldoRestante={saldoPendiente - abonoMonto}
+                saldoAnterior={linea.saldo_pagado}
                 vendedorNombre={vendedor?.nombre ?? ""}
-                fechaVenta={creditoSeleccionado!.fecha}
+                fechaVenta={linea.created_at}
               />
             ).toBlob()
-            await downloadPDF(blob, `abono-${creditoSeleccionado!.folio}.pdf`)
+            await downloadPDF(
+              blob,
+              `abono-${linea.id.slice(0, 8).toUpperCase()}.pdf`
+            )
           } catch {
             // PDF generation failed silently, abono was still recorded
           }
           setStep(1)
           setClienteId("")
-          setVentaId("")
           setAbonoMonto(0)
           setAbonoTipo("efectivo")
           setAbonoCuenta(null)
@@ -114,7 +118,7 @@ export default function AbonosPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="max-w-md">
+          <div className="w-full sm:max-w-md">
             <ClienteAutocomplete
               value={clienteId}
               onSelect={handleSelectCliente}
@@ -123,55 +127,63 @@ export default function AbonosPage() {
         </CardContent>
       </Card>
 
-      {/* Step 2: Seleccionar crédito */}
+      {/* Step 2: Línea de crédito activa */}
       {step >= 2 && clienteId && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Badge variant={step >= 2 ? "default" : "secondary"}>2</Badge>
-              Créditos pendientes
+              Línea de crédito
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!creditos || creditos.length === 0 ? (
+            {lineaLoading ? (
+              <p className="text-muted-foreground">Cargando...</p>
+            ) : !linea ? (
               <p className="text-muted-foreground">
                 Este cliente no tiene créditos activos
               </p>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {creditos.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => handleSelectCredito(c.id)}
-                    className={`rounded-lg border p-4 text-left transition-colors hover:bg-secondary ${
-                      ventaId === c.id ? "border-primary bg-secondary" : ""
-                    }`}
-                  >
-                    <div className="flex justify-between">
-                      <span className="font-medium">{c.folio}</span>
-                      <Badge variant="outline">{c.periodicidad}</Badge>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-medium text-sm text-muted-foreground">
+                      Línea activa
+                    </span>
+                    {linea.periodicidad && (
+                      <Badge variant="outline" className="capitalize">
+                        {linea.periodicidad}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Total</p>
+                      <p className="font-medium">
+                        {formatMoney(linea.saldo_total)}
+                      </p>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Total</p>
-                        <p className="font-medium">{formatMoney(c.total)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Abonado</p>
-                        <p className="font-medium text-green-600">
-                          {formatMoney(c.total_abonado)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Restante</p>
-                        <p className="font-bold text-orange-600">
-                          {formatMoney(c.saldo_restante)}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-muted-foreground">Abonado</p>
+                      <p className="font-medium text-green-600">
+                        {formatMoney(linea.saldo_pagado)}
+                      </p>
                     </div>
-                  </button>
-                ))}
+                    <div>
+                      <p className="text-muted-foreground">Pendiente</p>
+                      <p className="font-bold text-orange-600">
+                        {formatMoney(saldoPendiente)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {step < 3 && (
+                  <div className="flex justify-end">
+                    <Button onClick={handleContinueToAbono}>
+                      Registrar abono
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -179,7 +191,7 @@ export default function AbonosPage() {
       )}
 
       {/* Step 3: Registrar abono */}
-      {step >= 3 && creditoSeleccionado && (
+      {step >= 3 && linea && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -205,15 +217,14 @@ export default function AbonosPage() {
               onCuentaChange={setAbonoCuenta}
             />
             <p className="text-sm text-muted-foreground">
-              Saldo restante: {formatMoney(creditoSeleccionado.saldo_restante)}
+              Saldo pendiente: {formatMoney(saldoPendiente)}
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setStep(1)
                   setClienteId("")
-                  setVentaId("")
                 }}
               >
                 Cancelar

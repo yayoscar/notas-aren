@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useCrearTester } from "@/hooks/useProductosDerivados"
+import { useCrearSegunda } from "@/hooks/useProductosDerivados"
 import type { Producto } from "@/lib/supabase/types"
 import {
   Dialog,
@@ -21,15 +21,16 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-export function RegistrarTesterDialog({ producto, open, onOpenChange }: Props) {
+export function RegistrarSegundaDialog({ producto, open, onOpenChange }: Props) {
   const [cantidad, setCantidad] = useState(1)
-  const crearTester = useCrearTester()
+  const crearSegunda = useCrearSegunda()
 
   function handleSubmit() {
-    crearTester.mutate(
+    crearSegunda.mutate(
       {
         producto_origen_id: producto.id,
         cantidad,
+        descontar_stock: true,
       },
       {
         onSuccess: () => {
@@ -44,10 +45,11 @@ export function RegistrarTesterDialog({ producto, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Registrar como Tester</DialogTitle>
+          <DialogTitle>Registrar como Segunda</DialogTitle>
           <DialogDescription>
             Se descontará del stock de <strong>{producto.nombre}</strong> y se
-            creará un registro de tester.
+            creará (o actualizará) un registro segunda. El precio se puede
+            ajustar después con &quot;Editar precio&quot;.
           </DialogDescription>
         </DialogHeader>
 
@@ -60,9 +62,9 @@ export function RegistrarTesterDialog({ producto, open, onOpenChange }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cantidad">Cantidad de unidades</Label>
+            <Label htmlFor="cantidad_segunda">Cantidad de unidades</Label>
             <Input
-              id="cantidad"
+              id="cantidad_segunda"
               type="number"
               min={1}
               max={producto.stock_actual}
@@ -71,7 +73,7 @@ export function RegistrarTesterDialog({ producto, open, onOpenChange }: Props) {
             />
             {cantidad > producto.stock_actual && (
               <p className="text-sm text-destructive">
-                No puedes sacar más testers que el stock disponible
+                No puedes registrar más segundas que el stock disponible
               </p>
             )}
           </div>
@@ -84,12 +86,12 @@ export function RegistrarTesterDialog({ producto, open, onOpenChange }: Props) {
           <Button
             onClick={handleSubmit}
             disabled={
-              crearTester.isPending ||
+              crearSegunda.isPending ||
               cantidad < 1 ||
               cantidad > producto.stock_actual
             }
           >
-            {crearTester.isPending ? "Registrando..." : "Registrar Tester"}
+            {crearSegunda.isPending ? "Registrando..." : "Registrar Segunda"}
           </Button>
         </DialogFooter>
       </DialogContent>

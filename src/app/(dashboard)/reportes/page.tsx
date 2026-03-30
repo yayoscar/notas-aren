@@ -81,21 +81,25 @@ export default function ReportesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Reportes</h1>
-        <div className="flex items-center gap-2">
-          <Label className="text-sm">Desde</Label>
-          <Input
-            type="date"
-            value={fechaInicio}
-            onChange={(e) => setFechaInicio(e.target.value)}
-            className="w-40"
-          />
-          <Label className="text-sm">Hasta</Label>
-          <Input
-            type="date"
-            value={fechaFin}
-            onChange={(e) => setFechaFin(e.target.value)}
-            className="w-40"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm shrink-0">Desde</Label>
+            <Input
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className="w-full sm:w-40"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm shrink-0">Hasta</Label>
+            <Input
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className="w-full sm:w-40"
+            />
+          </div>
         </div>
       </div>
 
@@ -431,52 +435,108 @@ export default function ReportesPage() {
                 <CardTitle>Pagos por vendedor y método</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vendedor</TableHead>
-                      <TableHead className="text-right">Efectivo</TableHead>
-                      <TableHead className="text-right">Transferencia</TableHead>
-                      <TableHead className="text-right hidden sm:table-cell">Retiro s/tarjeta</TableHead>
-                      <TableHead className="text-right font-bold">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(pagosVendedorMetodo.data ?? []).length === 0 && (
+                {/* Mobile cards */}
+                <div className="space-y-2 md:hidden">
+                  {(pagosVendedorMetodo.data ?? []).length === 0 && (
+                    <p className="text-center text-muted-foreground py-6">Sin pagos en este periodo</p>
+                  )}
+                  {(pagosVendedorMetodo.data ?? []).map((row) => (
+                    <div key={row.vendedor} className="rounded-lg border p-3">
+                      <p className="font-medium mb-2">{row.vendedor}</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Efectivo</p>
+                          <p>{formatMoney(row.efectivo)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Transferencia</p>
+                          <p>{formatMoney(row.transferencia)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Retiro s/tarjeta</p>
+                          <p>{formatMoney(row.retiro_sin_tarjeta)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">Total</p>
+                          <p className="font-bold">{formatMoney(row.total)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(pagosVendedorMetodo.data ?? []).length > 0 && (
+                    <div className="rounded-lg border border-primary/30 bg-muted/30 p-3">
+                      <p className="font-bold mb-2">Total</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Efectivo</p>
+                          <p className="font-bold">{formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.efectivo, 0))}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Transferencia</p>
+                          <p className="font-bold">{formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.transferencia, 0))}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Retiro s/tarjeta</p>
+                          <p className="font-bold">{formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.retiro_sin_tarjeta, 0))}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="font-bold">{formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.total, 0))}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                          Sin pagos en este periodo
-                        </TableCell>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead className="text-right">Efectivo</TableHead>
+                        <TableHead className="text-right">Transferencia</TableHead>
+                        <TableHead className="text-right">Retiro s/tarjeta</TableHead>
+                        <TableHead className="text-right font-bold">Total</TableHead>
                       </TableRow>
-                    )}
-                    {(pagosVendedorMetodo.data ?? []).map((row) => (
-                      <TableRow key={row.vendedor}>
-                        <TableCell className="font-medium">{row.vendedor}</TableCell>
-                        <TableCell className="text-right">{formatMoney(row.efectivo)}</TableCell>
-                        <TableCell className="text-right">{formatMoney(row.transferencia)}</TableCell>
-                        <TableCell className="text-right hidden sm:table-cell">{formatMoney(row.retiro_sin_tarjeta)}</TableCell>
-                        <TableCell className="text-right font-bold">{formatMoney(row.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(pagosVendedorMetodo.data ?? []).length > 0 && (
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-bold">Total</TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.efectivo, 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.transferencia, 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-bold hidden sm:table-cell">
-                          {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.retiro_sin_tarjeta, 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.total, 0))}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {(pagosVendedorMetodo.data ?? []).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">
+                            Sin pagos en este periodo
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {(pagosVendedorMetodo.data ?? []).map((row) => (
+                        <TableRow key={row.vendedor}>
+                          <TableCell className="font-medium">{row.vendedor}</TableCell>
+                          <TableCell className="text-right">{formatMoney(row.efectivo)}</TableCell>
+                          <TableCell className="text-right">{formatMoney(row.transferencia)}</TableCell>
+                          <TableCell className="text-right">{formatMoney(row.retiro_sin_tarjeta)}</TableCell>
+                          <TableCell className="text-right font-bold">{formatMoney(row.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {(pagosVendedorMetodo.data ?? []).length > 0 && (
+                        <TableRow className="border-t-2">
+                          <TableCell className="font-bold">Total</TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.efectivo, 0))}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.transferencia, 0))}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.retiro_sin_tarjeta, 0))}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatMoney((pagosVendedorMetodo.data ?? []).reduce((s, r) => s + r.total, 0))}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>

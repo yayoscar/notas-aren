@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo } from "react"
-import Link from "next/link"
 import { useCreditosActivos } from "@/hooks/usePagos"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -14,52 +13,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  isBefore,
-  addDays,
-  addMonths,
-  nextFriday,
-  lastDayOfMonth,
-  setDate,
-} from "date-fns"
+import { isBefore, addDays } from "date-fns"
 import { formatMoney } from "@/lib/utils"
-
-function calcularProximoPago(
-  periodicidad: string | null,
-  fechaPrimerPago: string | null,
-  mesesCredito: number | null
-): Date | null {
-  if (!periodicidad || !fechaPrimerPago) return null
-
-  const hoy = new Date()
-  let fecha = new Date(fechaPrimerPago)
-  const fechaFin = addMonths(new Date(fechaPrimerPago), mesesCredito ?? 2)
-
-  // Avanzar hasta la próxima fecha de pago después de hoy
-  while (isBefore(fecha, hoy)) {
-    if (periodicidad === "semanal") {
-      fecha = nextFriday(fecha)
-    } else if (periodicidad === "quincenal") {
-      const day = fecha.getDate()
-      if (day <= 15) {
-        fecha = lastDayOfMonth(fecha)
-      } else {
-        const nextMonth = new Date(fecha)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        fecha = setDate(nextMonth, 15)
-      }
-    } else {
-      const nextMonth = new Date(fecha)
-      nextMonth.setMonth(nextMonth.getMonth() + 1)
-      fecha = lastDayOfMonth(nextMonth)
-    }
-
-    // No generar fechas más allá del plazo del crédito
-    if (isBefore(fechaFin, fecha)) return null
-  }
-
-  return fecha
-}
 
 export default function SeguimientoPagosPage() {
   const { data: creditos, isLoading } = useCreditosActivos()
@@ -68,28 +23,22 @@ export default function SeguimientoPagosPage() {
     if (!creditos) return { proximosAPagar: [], atrasados: [], todos: [] }
 
     const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
     const en3Dias = addDays(hoy, 3)
 
-    const conFechas = creditos.map((c) => ({
-      ...c,
-      proximoPago: calcularProximoPago(
-        c.periodicidad,
-        c.fecha_primer_pago,
-        c.meses_credito
-      ),
-    }))
-
     return {
-      proximosAPagar: conFechas.filter(
+      atrasados: creditos.filter(
         (c) =>
-          c.proximoPago &&
-          !isBefore(c.proximoPago, hoy) &&
-          isBefore(c.proximoPago, en3Dias)
+          c.fecha_siguiente_pago &&
+          isBefore(new Date(c.fecha_siguiente_pago), hoy)
       ),
-      atrasados: conFechas.filter(
-        (c) => c.proximoPago && isBefore(c.proximoPago, hoy)
+      proximosAPagar: creditos.filter(
+        (c) =>
+          c.fecha_siguiente_pago &&
+          !isBefore(new Date(c.fecha_siguiente_pago), hoy) &&
+          isBefore(new Date(c.fecha_siguiente_pago), en3Dias)
       ),
-      todos: conFechas,
+      todos: creditos,
     }
   }, [creditos])
 
@@ -117,12 +66,43 @@ export default function SeguimientoPagosPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            {/* Mobile cards */}
+            <div className="space-y-2 md:hidden">
+              {atrasados.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-lg border border-red-200 dark:border-red-900/30 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {c.clientes?.nombre}
+                    </span>
+                    <Badge variant="destructive">
+                      {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {c.periodicidad === "semanal"
+                        ? "Semanal"
+                        : c.periodicidad === "quincenal"
+                          ? "Quincenal"
+                          : "Mensual"}
+                    </span>
+                    <span className="font-mono tabular-nums font-medium text-orange-600">
+                      {formatMoney(c.saldo_pendiente)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Folio</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
+                  <TableHead className="text-right">Saldo pendiente</TableHead>
                   <TableHead>Vencimiento</TableHead>
                 </TableRow>
               </TableHeader>
@@ -132,20 +112,12 @@ export default function SeguimientoPagosPage() {
                     <TableCell className="font-medium">
                       {c.clientes?.nombre}
                     </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/ventas/${c.id}`}
-                        className="hover:underline"
-                      >
-                        {c.folio}
-                      </Link>
-                    </TableCell>
                     <TableCell className="text-right">
-                      {formatMoney(c.saldo_restante)}
+                      {formatMoney(c.saldo_pendiente)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="destructive">
-                        {c.proximoPago?.toLocaleDateString("es-MX")}
+                        {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -156,20 +128,51 @@ export default function SeguimientoPagosPage() {
         </Card>
       )}
 
-      {/* Próximos a pagar */}
+      {/* Proximos a pagar */}
       {proximosAPagar.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Próximos a pagar ({proximosAPagar.length})</CardTitle>
+            <CardTitle>Proximos a pagar ({proximosAPagar.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            {/* Mobile cards */}
+            <div className="space-y-2 md:hidden">
+              {proximosAPagar.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-lg border p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {c.clientes?.nombre}
+                    </span>
+                    <Badge variant="outline">
+                      {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {c.periodicidad === "semanal"
+                        ? "Semanal"
+                        : c.periodicidad === "quincenal"
+                          ? "Quincenal"
+                          : "Mensual"}
+                    </span>
+                    <span className="font-mono tabular-nums font-medium text-orange-600">
+                      {formatMoney(c.saldo_pendiente)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Folio</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead>Próximo pago</TableHead>
+                  <TableHead className="text-right">Saldo pendiente</TableHead>
+                  <TableHead>Proximo pago</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,20 +181,12 @@ export default function SeguimientoPagosPage() {
                     <TableCell className="font-medium">
                       {c.clientes?.nombre}
                     </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/ventas/${c.id}`}
-                        className="hover:underline"
-                      >
-                        {c.folio}
-                      </Link>
-                    </TableCell>
                     <TableCell className="text-right">
-                      {formatMoney(c.saldo_restante)}
+                      {formatMoney(c.saldo_pendiente)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {c.proximoPago?.toLocaleDateString("es-MX")}
+                        {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -202,24 +197,84 @@ export default function SeguimientoPagosPage() {
         </Card>
       )}
 
-      {/* Todos los créditos activos */}
+      {/* Todos los creditos activos */}
       <Card>
         <CardHeader>
           <CardTitle>
-            Créditos activos ({todos.length})
+            Creditos activos ({todos.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          {/* Mobile cards */}
+          <div className="space-y-2 md:hidden">
+            {todos.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                Sin creditos activos
+              </p>
+            )}
+            {todos.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-lg border p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {c.clientes?.nombre}
+                  </span>
+                  {c.fecha_siguiente_pago && (
+                    <span className="text-xs text-muted-foreground">
+                      Sig. pago: {new Date(c.fecha_siguiente_pago).toLocaleDateString("es-MX")}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Total</div>
+                    <div className="text-sm font-mono tabular-nums">
+                      {formatMoney(c.saldo_total)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Abonado</div>
+                    <div className="text-sm font-mono tabular-nums text-green-600">
+                      {formatMoney(c.saldo_pagado)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground">Pendiente</div>
+                    <div className="text-sm font-mono tabular-nums text-orange-600">
+                      {formatMoney(c.saldo_pendiente)}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 flex gap-2 text-xs">
+                  <Badge variant="outline">
+                    {c.meses_credito ?? 2}{" "}
+                    {(c.meses_credito ?? 2) === 1 ? "mes" : "meses"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {c.periodicidad === "semanal"
+                      ? "Semanal"
+                      : c.periodicidad === "quincenal"
+                        ? "Quincenal"
+                        : "Mensual"}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow>
-                <TableHead className="hidden sm:table-cell">Folio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead className="hidden sm:table-cell text-right">Total</TableHead>
-                <TableHead className="hidden lg:table-cell text-right">Abonado</TableHead>
-                <TableHead className="text-right">Restante</TableHead>
-                <TableHead className="hidden lg:table-cell">Plazo</TableHead>
-                <TableHead className="hidden sm:table-cell">Periodicidad</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Abonado</TableHead>
+                <TableHead className="text-right">Pendiente</TableHead>
+                <TableHead>Plazo</TableHead>
+                <TableHead>Periodicidad</TableHead>
+                <TableHead>Sig. pago</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,37 +284,31 @@ export default function SeguimientoPagosPage() {
                     colSpan={7}
                     className="text-center text-muted-foreground"
                   >
-                    Sin créditos activos
+                    Sin creditos activos
                   </TableCell>
                 </TableRow>
               )}
               {todos.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="hidden sm:table-cell">
-                    <Link
-                      href={`/ventas/${c.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {c.folio}
-                    </Link>
+                  <TableCell className="font-medium">
+                    {c.clientes?.nombre}
                   </TableCell>
-                  <TableCell>{c.clientes?.nombre}</TableCell>
-                  <TableCell className="hidden sm:table-cell text-right">
-                    {formatMoney(c.total)}
+                  <TableCell className="text-right">
+                    {formatMoney(c.saldo_total)}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell text-right text-green-600">
-                    {formatMoney(c.total_abonado)}
+                  <TableCell className="text-right text-green-600">
+                    {formatMoney(c.saldo_pagado)}
                   </TableCell>
                   <TableCell className="text-right text-orange-600 font-medium">
-                    {formatMoney(c.saldo_restante)}
+                    {formatMoney(c.saldo_pendiente)}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell>
                     <Badge variant="outline">
                       {c.meses_credito ?? 2}{" "}
                       {(c.meses_credito ?? 2) === 1 ? "mes" : "meses"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
+                  <TableCell>
                     <Badge variant="secondary">
                       {c.periodicidad === "semanal"
                         ? "Semanal"
@@ -267,6 +316,11 @@ export default function SeguimientoPagosPage() {
                           ? "Quincenal"
                           : "Mensual"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {c.fecha_siguiente_pago
+                      ? new Date(c.fecha_siguiente_pago).toLocaleDateString("es-MX")
+                      : "—"}
                   </TableCell>
                 </TableRow>
               ))}

@@ -5,12 +5,12 @@ import { createClient } from "@/lib/supabase/client"
 import type { ProductoWithRelations } from "./useProductos"
 import { toast } from "sonner"
 
-interface CrearTesterInput {
+interface CrearParcialInput {
   producto_origen_id: string
   cantidad: number
 }
 
-interface CrearParcialInput {
+interface CrearSegundaInput {
   producto_origen_id: string
   cantidad: number
   precio_venta_contado?: number // optional: if omitted, inherits from source
@@ -45,12 +45,12 @@ export function useDerivados(productoOrigenId: string) {
   })
 }
 
-export function useCrearTester() {
+export function useCrearParcial() {
   const supabase = createClient()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: CrearTesterInput) => {
+    mutationFn: async (input: CrearParcialInput) => {
       // Fetch parent product
       const { data: parent, error: parentError } = await supabase
         .from("productos")
@@ -75,31 +75,31 @@ export function useCrearTester() {
         .eq("id", input.producto_origen_id)
       if (updateError) throw updateError
 
-      // Check if a tester derivado already exists
-      const { data: existingTester } = await supabase
+      // Check if a parcial derivado already exists
+      const { data: existingParcial } = await supabase
         .from("productos")
         .select("*")
         .eq("producto_origen_id", input.producto_origen_id)
-        .eq("estado_producto", "tester")
+        .eq("estado_producto", "parcial")
         .maybeSingle()
 
-      let tester
-      if (existingTester) {
-        // Increment stock of existing tester
+      let parcial
+      if (existingParcial) {
+        // Increment stock of existing parcial
         const { data: updated, error: incError } = await supabase
           .from("productos")
           .update({
-            stock_actual: existingTester.stock_actual + input.cantidad,
+            stock_actual: existingParcial.stock_actual + input.cantidad,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingTester.id)
+          .eq("id", existingParcial.id)
           .select()
           .single()
         if (incError) throw incError
-        tester = updated
+        parcial = updated
       } else {
-        // Create new tester derivado
-        const { data: created, error: testerError } = await supabase
+        // Create new parcial derivado
+        const { data: created, error: parcialError } = await supabase
           .from("productos")
           .insert({
             nombre: parent.nombre,
@@ -117,13 +117,13 @@ export function useCrearTester() {
             stock_actual: input.cantidad,
             stock_minimo: 0,
             producto_origen_id: input.producto_origen_id,
-            estado_producto: "tester",
+            estado_producto: "parcial",
             activo: true,
           })
           .select()
           .single()
-        if (testerError) throw testerError
-        tester = created
+        if (parcialError) throw parcialError
+        parcial = created
       }
 
       // Record stock movement on parent
@@ -131,16 +131,16 @@ export function useCrearTester() {
         .from("stock_movimientos")
         .insert({
           producto_id: input.producto_origen_id,
-          tipo: "SALIDA_TESTER",
+          tipo: "SALIDA_PARCIAL",
           cantidad: input.cantidad,
           stock_antes: stockAntes,
           stock_despues: stockAntes - input.cantidad,
-          referencia_id: tester.id,
-          referencia_tipo: "tester",
+          referencia_id: parcial.id,
+          referencia_tipo: "parcial",
         })
       if (movError) throw movError
 
-      return tester
+      return parcial
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["productos"] })
@@ -150,22 +150,22 @@ export function useCrearTester() {
       queryClient.invalidateQueries({
         queryKey: ["stock_movimientos", variables.producto_origen_id],
       })
-      toast.success("Tester registrado exitosamente")
+      toast.success("Parcial registrado exitosamente")
     },
     onError: (err) =>
       toast.error(
-        err instanceof Error ? err.message : "Error al registrar tester"
+        err instanceof Error ? err.message : "Error al registrar parcial"
       ),
   })
 }
 
-export function useCrearParcial() {
+export function useCrearSegunda() {
   const supabase = createClient()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: CrearParcialInput) => {
-      // Fetch source product (can be parent or tester)
+    mutationFn: async (input: CrearSegundaInput) => {
+      // Fetch source product (can be parent or parcial)
       const { data: source, error: sourceError } = await supabase
         .from("productos")
         .select("*")
@@ -198,39 +198,39 @@ export function useCrearParcial() {
           cantidad: input.cantidad,
           stock_antes: stockAntes,
           stock_despues: stockAntes - input.cantidad,
-          referencia_tipo: "parcial",
-          notas: "Producto registrado como parcial",
+          referencia_tipo: "segunda",
+          notas: "Producto registrado como segunda",
         })
       }
 
       // Determine the real parent (producto_origen_id of the source, or the source itself)
       const realOrigenId = source.producto_origen_id || source.id
 
-      // Check if a parcial already exists for this parent (only one allowed)
-      const { data: existingParcial } = await supabase
+      // Check if a segunda already exists for this parent (only one allowed)
+      const { data: existingSegunda } = await supabase
         .from("productos")
         .select("*")
         .eq("producto_origen_id", realOrigenId)
-        .eq("estado_producto", "parcial")
+        .eq("estado_producto", "segunda")
         .maybeSingle()
 
-      let parcial
-      if (existingParcial) {
-        // Increment stock of existing parcial
+      let segunda
+      if (existingSegunda) {
+        // Increment stock of existing segunda
         const { data: updated, error: incError } = await supabase
           .from("productos")
           .update({
-            stock_actual: existingParcial.stock_actual + input.cantidad,
+            stock_actual: existingSegunda.stock_actual + input.cantidad,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingParcial.id)
+          .eq("id", existingSegunda.id)
           .select()
           .single()
         if (incError) throw incError
-        parcial = updated
+        segunda = updated
       } else {
-        // Create new parcial derivado — inherit prices from source
-        const { data: created, error: parcialError } = await supabase
+        // Create new segunda derivado — inherit prices from source
+        const { data: created, error: segundaError } = await supabase
           .from("productos")
           .insert({
             nombre: source.nombre,
@@ -248,25 +248,25 @@ export function useCrearParcial() {
             stock_actual: input.cantidad,
             stock_minimo: 0,
             producto_origen_id: realOrigenId,
-            estado_producto: "parcial",
+            estado_producto: "segunda",
             porcentaje_precio_parcial: input.porcentaje_precio_parcial ?? null,
             activo: true,
           })
           .select()
           .single()
-        if (parcialError) throw parcialError
-        parcial = created
+        if (segundaError) throw segundaError
+        segunda = created
       }
 
-      return parcial
+      return segunda
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["productos"] })
       queryClient.invalidateQueries({
         queryKey: ["productos_derivados", variables.producto_origen_id],
       })
-      toast.success("Producto parcial registrado")
+      toast.success("Producto segunda registrado")
     },
-    onError: () => toast.error("Error al registrar producto parcial"),
+    onError: () => toast.error("Error al registrar producto segunda"),
   })
 }

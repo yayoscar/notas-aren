@@ -48,6 +48,7 @@ interface Props {
   periodicidad: string
   fechaPrimerPago: string
   pagosRealizados?: { monto: number; fecha: string }[]
+  saldoProyectado?: number
 }
 
 interface CuotaProgramada {
@@ -66,16 +67,18 @@ function calcularFechasPago(
   fechaPrimerPago: string,
   periodicidad: string,
   saldoPendiente: number,
-  montoCuota: number
+  montoCuota: number,
+  maxCuotas: number
 ): CuotaProgramada[] {
   const pagos: CuotaProgramada[] = []
-  let fechaActual = new Date(fechaPrimerPago)
+  let fechaActual = new Date(fechaPrimerPago + "T12:00:00")
   let acumulado = 0
   let numero = 1
 
-  while (acumulado < saldoPendiente) {
+  while (acumulado < saldoPendiente && numero <= maxCuotas) {
     const montoRestante = saldoPendiente - acumulado
-    const montoPago = Math.min(montoCuota, montoRestante)
+    // Last payment absorbs the remainder to match exactly
+    const montoPago = numero === maxCuotas ? montoRestante : Math.min(montoCuota, montoRestante)
     acumulado += montoPago
 
     pagos.push({
@@ -136,8 +139,9 @@ export function TablaPagosPDF({
   periodicidad,
   fechaPrimerPago,
   pagosRealizados = [],
+  saldoProyectado,
 }: Props) {
-  const saldoPendiente = total - primerAbono
+  const saldoPendiente = saldoProyectado ?? (total - primerAbono)
   const factor =
     periodicidad === "semanal" ? 4 : periodicidad === "quincenal" ? 2 : 1
   const numCuotas = meses * factor
@@ -147,7 +151,8 @@ export function TablaPagosPDF({
     fechaPrimerPago,
     periodicidad,
     saldoPendiente,
-    montoCuota
+    montoCuota,
+    numCuotas
   )
 
   const cuotas = aplicarCobertura(cuotasBase, pagosRealizados)

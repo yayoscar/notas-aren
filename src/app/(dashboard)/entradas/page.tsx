@@ -31,35 +31,64 @@ export default function EntradasPage() {
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Folio</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-                  <TableHead className="hidden sm:table-cell">N° Factura</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card view */}
+              <div className="space-y-2 md:hidden">
                 {query.data?.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No hay entradas registradas
-                    </TableCell>
-                  </TableRow>
+                  <p className="text-center text-sm text-muted-foreground py-4">
+                    No hay entradas registradas
+                  </p>
                 )}
                 {query.data?.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-mono font-medium">{e.folio}</TableCell>
-                    <TableCell>{e.proveedores?.nombre ?? "—"}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{e.numero_factura ?? "—"}</TableCell>
-                    <TableCell className="text-right font-mono">{formatMoney(Number(e.total))}</TableCell>
-                  </TableRow>
+                  <div key={e.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-mono font-medium">{e.folio}</span>
+                      <span className="font-mono tabular-nums font-medium">{formatMoney(Number(e.total))}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{e.proveedores?.nombre ?? "—"}</span>
+                      <span>{new Date(e.fecha).toLocaleDateString("es-MX")}</span>
+                    </div>
+                    {e.numero_factura && (
+                      <p className="text-xs text-muted-foreground">Factura: {e.numero_factura}</p>
+                    )}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table view */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Folio</TableHead>
+                      <TableHead>Proveedor</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>N° Factura</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {query.data?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No hay entradas registradas
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {query.data?.map((e) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="font-mono font-medium">{e.folio}</TableCell>
+                        <TableCell>{e.proveedores?.nombre ?? "—"}</TableCell>
+                        <TableCell>{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
+                        <TableCell>{e.numero_factura ?? "—"}</TableCell>
+                        <TableCell className="text-right font-mono">{formatMoney(Number(e.total))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -24,6 +24,13 @@ export type VentaFullDetail = Venta & {
   clientes: { nombre: string; telefono: string } | null
   ventas_detalle: VentaDetalleWithProducto[]
   pagos: PagoWithCuenta[]
+  lineas_credito: {
+    saldo_total: number
+    saldo_pagado: number
+    meses_credito: number
+    periodicidad: string
+    fecha_siguiente_pago: string | null
+  } | null
 }
 
 interface VentaDetalleInput {
@@ -47,11 +54,15 @@ interface CrearVentaInput {
   // Contado
   pago?: PagoInput
   // Crédito
+  linea_credito_id?: string
   periodicidad?: string | null
   fecha_primer_pago?: string | null
   entrega_despues_pago?: boolean
   meses_credito?: number | null
   primer_abono?: PagoInput | null
+  ajuste_meses_credito?: number
+  ajuste_periodicidad?: string
+  ajuste_fecha_siguiente_pago?: string
 }
 
 export function useVentas() {
@@ -72,7 +83,8 @@ export function useVentas() {
 
   const create = useMutation({
     mutationFn: async (input: CrearVentaInput) => {
-      const { detalles, pago, primer_abono, ...ventaData } = input
+      const { detalles, pago, primer_abono, linea_credito_id, ajuste_meses_credito, ajuste_periodicidad, ajuste_fecha_siguiente_pago, ...ventaData } =
+        input
 
       // Calcular total
       const total = detalles.reduce(
@@ -80,14 +92,67 @@ export function useVentas() {
         0
       )
 
+      // --- Línea de crédito logic ---
+      let resolvedLineaCreditoId: string | null = null
+
+      if (ventaData.tipo_venta === "credito") {
+        if (linea_credito_id) {
+          // Existing línea: accumulate saldo
+          resolvedLineaCreditoId = linea_credito_id
+
+          const { data: lineaActual, error: fetchErr } = await supabase
+            .from("lineas_credito")
+            .select("saldo_total")
+            .eq("id", linea_credito_id)
+            .single()
+          if (fetchErr) throw fetchErr
+
+          const { error: updateErr } = await supabase
+            .from("lineas_credito")
+            .update({
+              saldo_total: (lineaActual.saldo_total ?? 0) + total,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", linea_credito_id)
+          if (updateErr) throw updateErr
+        } else {
+          // New línea de crédito
+          const { data: nuevaLinea, error: lineaErr } = await supabase
+            .from("lineas_credito")
+            .insert({
+              cliente_id: ventaData.cliente_id,
+              vendedor_id: ventaData.vendedor_id,
+              saldo_total: total,
+              meses_credito: ventaData.meses_credito ?? 2,
+              periodicidad: ventaData.periodicidad ?? "quincenal",
+              fecha_inicio: ventaData.fecha_primer_pago ?? ventaData.fecha,
+              fecha_siguiente_pago: ventaData.fecha_primer_pago ?? null,
+              estado: "activa",
+            })
+            .select()
+            .single()
+          if (lineaErr) throw lineaErr
+
+          resolvedLineaCreditoId = nuevaLinea.id as string
+        }
+      }
+
+      // Generate folio: V-YYYYMMDD-XXXX (timestamp + random to avoid collisions)
+      const now = new Date()
+      const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`
+      const randPart = Math.random().toString(36).substring(2, 6).toUpperCase()
+      const folio = `V-${datePart}-${randPart}`
+
       // Insertar venta
       const { data: venta, error: ventaError } = await supabase
         .from("ventas")
         .insert({
           ...ventaData,
+          folio,
           total,
           estado_credito:
             ventaData.tipo_venta === "credito" ? "activo" : null,
+          linea_credito_id: resolvedLineaCreditoId,
         })
         .select()
         .single()
@@ -120,9 +185,14 @@ export function useVentas() {
       }
 
       // Insertar primer abono de crédito (opcional)
-      if (ventaData.tipo_venta === "credito" && primer_abono) {
+      if (
+        ventaData.tipo_venta === "credito" &&
+        primer_abono &&
+        primer_abono.monto > 0
+      ) {
         const { error: abonoError } = await supabase.from("pagos").insert({
           venta_id: venta.id as string,
+          linea_credito_id: resolvedLineaCreditoId,
           monto: primer_abono.monto,
           tipo_pago: primer_abono.tipo_pago,
           cuenta_bancaria_id: primer_abono.cuenta_bancaria_id ?? null,
@@ -130,6 +200,36 @@ export function useVentas() {
           cliente_id: ventaData.cliente_id,
         })
         if (abonoError) throw abonoError
+
+        // Update saldo_pagado on the línea
+        if (resolvedLineaCreditoId) {
+          const { data: lineaForAbono, error: fetchErr2 } = await supabase
+            .from("lineas_credito")
+            .select("saldo_pagado")
+            .eq("id", resolvedLineaCreditoId)
+            .single()
+          if (fetchErr2) throw fetchErr2
+
+          const { error: updateErr2 } = await supabase
+            .from("lineas_credito")
+            .update({
+              saldo_pagado:
+                (lineaForAbono.saldo_pagado ?? 0) + primer_abono.monto,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", resolvedLineaCreditoId)
+          if (updateErr2) throw updateErr2
+        }
+      }
+
+      // Apply plan adjustment if provided
+      if (ajuste_meses_credito && ajuste_periodicidad && ajuste_fecha_siguiente_pago && resolvedLineaCreditoId) {
+        await supabase.from("lineas_credito").update({
+          meses_credito: ajuste_meses_credito,
+          periodicidad: ajuste_periodicidad,
+          fecha_siguiente_pago: ajuste_fecha_siguiente_pago,
+          updated_at: new Date().toISOString(),
+        }).eq("id", resolvedLineaCreditoId)
       }
 
       return venta
@@ -137,6 +237,8 @@ export function useVentas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ventas"] })
       queryClient.invalidateQueries({ queryKey: ["productos"] })
+      queryClient.invalidateQueries({ queryKey: ["lineas_credito_activas"] })
+      queryClient.invalidateQueries({ queryKey: ["linea_credito_cliente"] })
       toast.success("Venta registrada exitosamente")
     },
     onError: () => toast.error("Error al registrar venta"),
@@ -275,7 +377,7 @@ export function useVenta(id: string) {
       const { data, error } = await supabase
         .from("ventas")
         .select(
-          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku, estado_producto)), pagos(*, cat_cuenta_bancaria(alias, clabe), vendedores(nombre))`
+          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku, estado_producto, precio_venta_contado, precio_venta_credito, producto_origen_id)), pagos(*, cat_cuenta_bancaria(alias, clabe), vendedores(nombre)), lineas_credito(saldo_total, saldo_pagado, meses_credito, periodicidad, fecha_siguiente_pago)`
         )
         .eq("id", id)
         .single()

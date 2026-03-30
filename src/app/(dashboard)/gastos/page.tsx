@@ -68,56 +68,100 @@ export default function GastosPage() {
               ))}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Concepto</TableHead>
-                  <TableHead className="hidden sm:table-cell">Categoría</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="hidden sm:table-cell">Tipo pago</TableHead>
-                  <TableHead className="hidden sm:table-cell">Registró</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card view */}
+              <div className="space-y-2 md:hidden">
                 {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center text-muted-foreground"
-                    >
-                      Sin registros
-                    </TableCell>
-                  </TableRow>
+                  <p className="text-center text-sm text-muted-foreground py-4">
+                    Sin registros
+                  </p>
                 )}
                 {filtered.map((g) => (
-                  <TableRow key={g.id}>
-                    <TableCell>
-                      {new Date(g.fecha).toLocaleDateString("es-MX")}
-                    </TableCell>
-                    <TableCell className="font-medium">{g.concepto}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
+                  <div key={g.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium truncate">
+                        {g.concepto}
+                      </span>
+                      <span className="font-mono tabular-nums font-medium">
+                        {formatMoney(g.monto)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {new Date(g.fecha).toLocaleDateString("es-MX")}
+                      </span>
                       <Badge variant="secondary">
                         {g.cat_categoria_gasto?.nombre ?? "—"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatMoney(g.monto)}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      {g.tipo_pago === "efectivo"
-                        ? "Efectivo"
-                        : g.tipo_pago === "transferencia"
-                          ? "Transferencia"
-                          : "Retiro s/tarjeta"}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
-                      {g.vendedores?.nombre ?? "—"}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {g.tipo_pago === "efectivo"
+                          ? "Efectivo"
+                          : g.tipo_pago === "transferencia"
+                            ? "Transferencia"
+                            : "Retiro s/tarjeta"}
+                      </span>
+                      <span>{g.vendedores?.nombre ?? "—"}</span>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table view */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead>Tipo pago</TableHead>
+                      <TableHead>Registró</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-muted-foreground"
+                        >
+                          Sin registros
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {filtered.map((g) => (
+                      <TableRow key={g.id}>
+                        <TableCell>
+                          {new Date(g.fecha).toLocaleDateString("es-MX")}
+                        </TableCell>
+                        <TableCell className="font-medium">{g.concepto}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {g.cat_categoria_gasto?.nombre ?? "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatMoney(g.monto)}
+                        </TableCell>
+                        <TableCell>
+                          {g.tipo_pago === "efectivo"
+                            ? "Efectivo"
+                            : g.tipo_pago === "transferencia"
+                              ? "Transferencia"
+                              : "Retiro s/tarjeta"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {g.vendedores?.nombre ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

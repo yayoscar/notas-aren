@@ -340,7 +340,79 @@ export default function NuevaEntradaPage() {
               )}
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-3">
+              {detalles.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">
+                  Busca y agrega productos arriba
+                </p>
+              )}
+              {detalles.map((d, i) => (
+                <div key={d.producto_id} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium truncate mr-2">{d.producto_nombre}</span>
+                    <Button size="sm" variant="ghost" type="button" className="text-destructive shrink-0" onClick={() => removeDetalle(i)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Cantidad</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={d.cantidad}
+                        onChange={(e) => updateDetalle(i, "cantidad", parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">P. Compra</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={d.precio_unitario}
+                        onChange={(e) => updateDetalle(i, "precio_unitario", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">P. Contado</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={d.precio_venta_contado}
+                        onChange={(e) => updateDetalle(i, "precio_venta_contado", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">P. Credito</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={d.precio_venta_credito}
+                        onChange={(e) => updateDetalle(i, "precio_venta_credito", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-mono font-medium">Subtotal: {formatMoney(d.cantidad * d.precio_unitario)}</span>
+                  </div>
+                </div>
+              ))}
+              {detalles.length > 0 && (
+                <div className="text-right pt-2 border-t">
+                  <span className="font-bold">Total: </span>
+                  <span className="font-bold font-mono">{formatMoney(total)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

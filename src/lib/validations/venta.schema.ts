@@ -12,6 +12,8 @@ export const ventaDetalleSchema = z.object({
   _stock_actual: z.number().optional(),
   _precio_minimo: z.number().optional(),
   _estado_producto: z.string().optional(),
+  _porcentaje_parcial: z.number().optional(),
+  _precio_padre: z.number().optional(),
 })
 
 export const pagoInlineSchema = z.object({

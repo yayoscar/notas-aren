@@ -58,48 +58,79 @@ export default function VendedoresPage() {
             <div className="space-y-2">
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">
+              Sin vendedores registrados
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="hidden sm:table-cell">Usuario</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead className="hidden sm:table-cell">Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      Sin vendedores registrados
-                    </TableCell>
-                  </TableRow>
-                )}
+            <>
+              {/* Mobile cards */}
+              <div className="space-y-2 md:hidden">
                 {filtered.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell>
-                      <Link href={`/vendedores/${v.id}`} className="font-medium hover:underline">
-                        {v.nombre}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell font-mono text-sm">{v.usuario}</TableCell>
-                    <TableCell>{v.telefono}</TableCell>
-                    <TableCell>
+                  <Link
+                    key={v.id}
+                    href={`/vendedores/${v.id}`}
+                    className="block rounded-lg border p-3 transition-colors hover:bg-accent/50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{v.nombre}</span>
                       <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
                         {v.rol === "admin" ? "Administrador" : "Vendedor"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-muted-foreground">{v.telefono}</span>
                       <Badge variant={v.activo ? "default" : "secondary"}>
                         {v.activo ? "Activo" : "Inactivo"}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    {v.usuario && (
+                      <div className="mt-1">
+                        <span className="text-xs text-muted-foreground font-mono">{v.usuario}</span>
+                      </div>
+                    )}
+                  </Link>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((v) => (
+                      <TableRow key={v.id}>
+                        <TableCell>
+                          <Link href={`/vendedores/${v.id}`} className="font-medium hover:underline">
+                            {v.nombre}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{v.usuario}</TableCell>
+                        <TableCell>{v.telefono}</TableCell>
+                        <TableCell>
+                          <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
+                            {v.rol === "admin" ? "Administrador" : "Vendedor"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={v.activo ? "default" : "secondary"}>
+                            {v.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

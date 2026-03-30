@@ -3,38 +3,30 @@ import { z } from "zod"
 export const productoDevueltoSchema = z.object({
   producto_id: z.string().uuid(),
   cantidad: z.coerce.number().int().min(1, "Mínimo 1"),
-  estado_devuelto: z.enum(["nuevo", "parcial"], {
+  estado_devuelto: z.enum(["nuevo", "segunda", "parcial"], {
     message: "Selecciona el estado del producto",
   }),
   precio_original: z.coerce.number().min(0),
   precio_depreciado: z.coerce.number().min(0).optional(),
+  porcentaje_parcial: z.coerce.number().min(1).max(100).optional(),
   // Auxiliares
   _nombre: z.string().optional(),
   _cantidad_max: z.number().optional(),
 })
 
-export const productoNuevoSchema = z.object({
-  producto_id: z.string().uuid(),
-  cantidad: z.coerce.number().int().min(1, "Mínimo 1"),
-  precio_unitario: z.coerce.number().min(0.01, "Precio requerido"),
-  _nombre: z.string().optional(),
-  _stock_actual: z.number().optional(),
-})
-
 const devolucionBaseSchema = z.object({
   venta_id: z.string().uuid(),
-  tipo: z.enum(["devolucion", "cambio", "anulacion"], {
+  tipo: z.enum(["devolucion", "anulacion"], {
     message: "Selecciona el tipo de operación",
   }),
   productos_devueltos: z
     .array(productoDevueltoSchema)
     .min(1, "Selecciona al menos un producto a devolver"),
-  productos_nuevos: z.array(productoNuevoSchema).optional(),
   fecha: z.string().min(1, "La fecha es requerida"),
   fecha_venta: z.string().min(1, "La fecha de venta es requerida"),
   motivo: z.string().min(10, "El motivo debe tener al menos 10 caracteres"),
   destino_monto: z
-    .enum(["efectivo", "abono_credito"])
+    .enum(["efectivo", "abono_credito", "ajuste_plan"])
     .nullable()
     .optional(),
 })
@@ -69,24 +61,13 @@ export const devolucionSchema = devolucionBaseSchema.superRefine(
       })
     }
 
-    // Si es cambio, debe haber al menos un producto nuevo
-    if (data.tipo === "cambio") {
-      if (!data.productos_nuevos || data.productos_nuevos.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Selecciona al menos un producto nuevo para el cambio",
-          path: ["productos_nuevos"],
-        })
-      }
-    }
-
-    // Productos parciales deben tener precio depreciado válido
+    // Productos segunda y parcial deben tener precio depreciado válido
     data.productos_devueltos.forEach((p, i) => {
-      if (p.estado_devuelto === "parcial") {
+      if (p.estado_devuelto === "segunda" || p.estado_devuelto === "parcial") {
         if (p.precio_depreciado === undefined || p.precio_depreciado <= 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "Ingresa el valor depreciado del producto",
+            message: "Ingresa el valor del producto",
             path: ["productos_devueltos", i, "precio_depreciado"],
           })
         }
@@ -97,8 +78,18 @@ export const devolucionSchema = devolucionBaseSchema.superRefine(
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message:
-              "El precio depreciado no puede ser mayor al precio de venta",
+              "El precio no puede ser mayor al precio de venta",
             path: ["productos_devueltos", i, "precio_depreciado"],
+          })
+        }
+      }
+
+      if (p.estado_devuelto === "parcial") {
+        if (!p.porcentaje_parcial || p.porcentaje_parcial <= 0 || p.porcentaje_parcial > 100) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Ingresa el porcentaje de contenido restante (1-100%)",
+            path: ["productos_devueltos", i, "porcentaje_parcial"],
           })
         }
       }
@@ -108,4 +99,3 @@ export const devolucionSchema = devolucionBaseSchema.superRefine(
 
 export type DevolucionFormValues = z.infer<typeof devolucionBaseSchema>
 export type ProductoDevueltoValues = z.infer<typeof productoDevueltoSchema>
-export type ProductoNuevoValues = z.infer<typeof productoNuevoSchema>

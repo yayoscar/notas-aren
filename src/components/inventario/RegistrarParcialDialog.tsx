@@ -30,7 +30,6 @@ export function RegistrarParcialDialog({ producto, open, onOpenChange }: Props) 
       {
         producto_origen_id: producto.id,
         cantidad,
-        descontar_stock: true,
       },
       {
         onSuccess: () => {
@@ -48,8 +47,7 @@ export function RegistrarParcialDialog({ producto, open, onOpenChange }: Props) 
           <DialogTitle>Registrar como Parcial</DialogTitle>
           <DialogDescription>
             Se descontará del stock de <strong>{producto.nombre}</strong> y se
-            creará (o actualizará) un registro parcial. El precio se puede
-            ajustar después con &quot;Editar precio&quot;.
+            creará un registro de parcial.
           </DialogDescription>
         </DialogHeader>
 
@@ -62,9 +60,9 @@ export function RegistrarParcialDialog({ producto, open, onOpenChange }: Props) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cantidad_parcial">Cantidad de unidades</Label>
+            <Label htmlFor="cantidad">Cantidad de unidades</Label>
             <Input
-              id="cantidad_parcial"
+              id="cantidad"
               type="number"
               min={1}
               max={producto.stock_actual}
@@ -73,7 +71,7 @@ export function RegistrarParcialDialog({ producto, open, onOpenChange }: Props) 
             />
             {cantidad > producto.stock_actual && (
               <p className="text-sm text-destructive">
-                No puedes registrar más parciales que el stock disponible
+                No puedes sacar más parciales que el stock disponible
               </p>
             )}
           </div>

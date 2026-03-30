@@ -18,7 +18,7 @@ import type { CreditoCobranza } from "@/hooks/useCobranza"
 interface Props {
   creditos: CreditoCobranza[]
   onMarcarAtendido: (
-    ventaId: string,
+    lineaCreditoId: string,
     periodoInicio: string,
     periodoFin: string,
     frecuencia: string,
@@ -45,6 +45,83 @@ export function CobranzaTable({
   }
 
   return (
+    <>
+      {/* Mobile card view */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {creditos.map((c) => (
+          <div
+            key={c.id}
+            className={`rounded-lg border p-3 ${c.atendido ? "opacity-50" : ""}`}
+          >
+            {/* Row 1: Checkbox + Name + Folio */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={c.atendido}
+                disabled={isUpdating}
+                onCheckedChange={(checked) =>
+                  onMarcarAtendido(
+                    c.id,
+                    c.periodo_inicio,
+                    c.periodo_fin,
+                    c.periodicidad ?? "quincenal",
+                    !!checked
+                  )
+                }
+              />
+              <span
+                className={`text-sm font-medium ${c.atendido ? "line-through" : ""}`}
+              >
+                {c.clientes?.nombre ?? "—"}
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {c.clientes?.ciudad ?? ""}
+              </span>
+            </div>
+
+            {/* Row 2: Saldo + Fecha cobro */}
+            <div className="mt-1.5 flex items-center justify-between">
+              <span className="font-mono font-medium text-orange-600">
+                {formatMoney(c.saldo_restante)}
+              </span>
+              {c.fecha_cobro_especifica ? (
+                <Badge variant="outline">{c.fecha_cobro_especifica}</Badge>
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </div>
+
+            {/* Row 3: Telefono + Actions */}
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {c.clientes?.telefono ?? "—"}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => onRegistrarAbono(c)}
+                  className="h-8"
+                >
+                  <Wallet className="mr-1 h-3.5 w-3.5" />
+                  Abonar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onAsignarFecha(c)}
+                  className="h-8 w-8 p-0"
+                  title="Asignar fecha de cobro"
+                >
+                  <CalendarClock className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block">
     <Table>
       <TableHeader>
         <TableRow>
@@ -84,7 +161,7 @@ export function CobranzaTable({
                   {c.clientes?.nombre ?? "—"}
                 </span>
                 <span className="ml-2 text-xs text-muted-foreground">
-                  {c.folio}
+                  {c.clientes?.ciudad ?? ""}
                 </span>
               </div>
             </TableCell>
@@ -130,5 +207,7 @@ export function CobranzaTable({
         ))}
       </TableBody>
     </Table>
+      </div>
+    </>
   )
 }

@@ -62,22 +62,26 @@ export default function VendedorDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-bold">{v.nombre}</h1>
-        <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
-          {v.rol === "admin" ? "Administrador" : "Vendedor"}
-        </Badge>
-        <Badge variant={v.activo ? "default" : "secondary"}>
-          {v.activo ? "Activo" : "Inactivo"}
-        </Badge>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <h1 className="text-xl font-bold sm:text-2xl">{v.nombre}</h1>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
+            {v.rol === "admin" ? "Administrador" : "Vendedor"}
+          </Badge>
+          <Badge variant={v.activo ? "default" : "secondary"}>
+            {v.activo ? "Activo" : "Inactivo"}
+          </Badge>
+        </div>
       </div>
 
       <Tabs defaultValue="detalle">
-        <TabsList>
-          <TabsTrigger value="detalle">Detalle</TabsTrigger>
-          <TabsTrigger value="editar">Editar</TabsTrigger>
-          <TabsTrigger value="password">Contraseña</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="w-max sm:w-auto">
+            <TabsTrigger value="detalle">Detalle</TabsTrigger>
+            <TabsTrigger value="editar">Editar</TabsTrigger>
+            <TabsTrigger value="password">Contraseña</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="detalle" className="mt-4">
           <Card>
@@ -115,7 +119,7 @@ export default function VendedorDetailPage() {
                 Al asignar una nueva contraseña, el vendedor deberá cambiarla en su próximo inicio de sesión.
               </p>
               <Separator />
-              <div className="flex items-end gap-4 max-w-md">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end max-w-md">
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="newPassword">Nueva contraseña</Label>
                   <Input

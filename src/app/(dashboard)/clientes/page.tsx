@@ -59,43 +59,80 @@ export default function ClientesPage() {
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead className="hidden sm:table-cell">Ciudad</TableHead>
-                  <TableHead className="hidden sm:table-cell">Referido por</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card view */}
+              <div className="space-y-2 md:hidden">
                 {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      Sin clientes registrados
-                    </TableCell>
-                  </TableRow>
+                  <p className="text-center text-sm text-muted-foreground py-4">
+                    Sin clientes registrados
+                  </p>
                 )}
                 {filtered.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <Link href={`/clientes/${c.id}`} className="font-medium hover:underline">
-                        {c.nombre}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{c.telefono}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{c.cat_ciudad?.nombre ?? "—"}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{c.referido_por?.nombre ?? "—"}</TableCell>
-                    <TableCell>
+                  <Link
+                    key={c.id}
+                    href={`/clientes/${c.id}`}
+                    className="block rounded-lg border p-3 transition-colors hover:bg-accent/50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{c.nombre}</span>
                       <Badge variant={c.activo ? "default" : "secondary"}>
                         {c.activo ? "Activo" : "Inactivo"}
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                      <span>{c.telefono}</span>
+                      <span>{c.cat_ciudad?.nombre ?? "—"}</span>
+                    </div>
+                    {c.referido_por?.nombre && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Ref: {c.referido_por.nombre}
+                      </div>
+                    )}
+                  </Link>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table view */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Ciudad</TableHead>
+                      <TableHead>Referido por</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          Sin clientes registrados
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {filtered.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          <Link href={`/clientes/${c.id}`} className="font-medium hover:underline">
+                            {c.nombre}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{c.telefono}</TableCell>
+                        <TableCell>{c.cat_ciudad?.nombre ?? "—"}</TableCell>
+                        <TableCell>{c.referido_por?.nombre ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={c.activo ? "default" : "secondary"}>
+                            {c.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

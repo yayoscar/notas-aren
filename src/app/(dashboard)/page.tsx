@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Package, AlertTriangle, ArrowDownToLine, DollarSign } from "lucide-react"
+import { Package, AlertTriangle, ArrowDownToLine, DollarSign, CreditCard, Landmark } from "lucide-react"
 
 export default function DashboardPage() {
   const supabase = createClient()
@@ -12,10 +12,11 @@ export default function DashboardPage() {
   const stats = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [productosRes, stockBajoRes, entradasRes] = await Promise.all([
+      const [productosRes, stockBajoRes, entradasRes, lineasCreditoRes] = await Promise.all([
         supabase.from("productos").select("id, stock_actual, precio_compra", { count: "exact" }).eq("activo", true),
         supabase.from("productos").select("id", { count: "exact" }).eq("activo", true).lte("stock_actual", 5),
         supabase.from("entradas").select("id, total", { count: "exact" }).order("created_at", { ascending: false }).limit(5),
+        supabase.from("lineas_credito").select("saldo_total, saldo_pagado", { count: "exact" }).eq("estado", "activa"),
       ])
 
       const productos = (productosRes.data ?? []) as { id: string; stock_actual: number; precio_compra: number }[]
@@ -24,11 +25,20 @@ export default function DashboardPage() {
         0
       )
 
+      const lineasCredito = (lineasCreditoRes.data ?? []) as { saldo_total: number; saldo_pagado: number }[]
+      const creditosActivos = lineasCreditoRes.count ?? 0
+      const totalEnCredito = lineasCredito.reduce(
+        (sum, lc) => sum + (lc.saldo_total - lc.saldo_pagado),
+        0
+      )
+
       return {
         totalProductos: productosRes.count ?? 0,
         stockBajo: stockBajoRes.count ?? 0,
         totalEntradas: entradasRes.count ?? 0,
         valorInventario,
+        creditosActivos,
+        totalEnCredito,
       }
     },
   })
@@ -63,6 +73,20 @@ export default function DashboardPage() {
       format: (v: number) => `$${v.toLocaleString("es-MX", { minimumFractionDigits: 2 })}`,
       color: "text-primary",
     },
+    {
+      title: "Créditos activos",
+      value: stats.data?.creditosActivos ?? 0,
+      icon: CreditCard,
+      format: (v: number) => v.toLocaleString("es-MX"),
+      color: "text-brand-gold",
+    },
+    {
+      title: "Total en crédito",
+      value: stats.data?.totalEnCredito ?? 0,
+      icon: Landmark,
+      format: (v: number) => `$${v.toLocaleString("es-MX", { minimumFractionDigits: 2 })}`,
+      color: "text-brand-terracotta",
+    },
   ]
 
   return (
@@ -74,7 +98,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Card key={card.title} className="card-hover border-border/60">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -89,7 +113,7 @@ export default function DashboardPage() {
               {stats.isLoading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
-                <p className={`text-2xl font-display font-semibold ${card.alert ? "text-orange-500" : ""}`}>
+                <p className={`text-2xl font-body font-bold tabular-nums ${card.alert ? "text-orange-500" : ""}`}>
                   {card.format(card.value)}
                 </p>
               )}

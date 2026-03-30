@@ -14,11 +14,10 @@ import {
   Users,
   UserCog,
   ShoppingCart,
-  Wallet,
-  CalendarCheck,
   HandCoins,
   Receipt,
   BarChart3,
+  Settings,
 } from "lucide-react"
 
 type NavItem = {
@@ -26,7 +25,7 @@ type NavItem = {
   href: string
   icon: typeof LayoutDashboard
   adminOnly: boolean
-  group: "menu" | "comercial"
+  group: "menu" | "comercial" | "sistema"
 }
 
 const allNavigation: NavItem[] = [
@@ -39,11 +38,11 @@ const allNavigation: NavItem[] = [
   { name: "Vendedores", href: "/vendedores", icon: UserCog, adminOnly: true, group: "menu" },
   // Comercial
   { name: "Ventas", href: "/ventas", icon: ShoppingCart, adminOnly: false, group: "comercial" },
-  { name: "Abonos", href: "/abonos", icon: Wallet, adminOnly: false, group: "comercial" },
-  { name: "Seguimiento", href: "/seguimiento-pagos", icon: CalendarCheck, adminOnly: true, group: "comercial" },
-  { name: "Cobranza", href: "/seguimiento-cobranza", icon: HandCoins, adminOnly: true, group: "comercial" },
+  { name: "Cobranza", href: "/seguimiento-cobranza", icon: HandCoins, adminOnly: false, group: "comercial" },
   { name: "Gastos", href: "/gastos", icon: Receipt, adminOnly: true, group: "comercial" },
   { name: "Reportes", href: "/reportes", icon: BarChart3, adminOnly: true, group: "comercial" },
+  // Sistema
+  { name: "Configuracion", href: "/configuracion", icon: Settings, adminOnly: true, group: "sistema" },
 ]
 
 type SidebarProps = {
@@ -95,13 +94,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-5">
-        {(["menu", "comercial"] as const).map((group) => {
+        {(["menu", "comercial", "sistema"] as const).map((group) => {
           const items = navigation.filter((item) => item.group === group)
           if (items.length === 0) return null
           return (
             <div key={group} className="mb-4">
               <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/70">
-                {group === "menu" ? "Menú" : "Comercial"}
+                {group === "menu" ? "Menú" : group === "comercial" ? "Comercial" : "Sistema"}
               </p>
               <div className="space-y-0.5">
                 {items.map((item) => {

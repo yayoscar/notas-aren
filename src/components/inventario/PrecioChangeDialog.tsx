@@ -73,48 +73,78 @@ export function PrecioChangeDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Actual</TableHead>
-              <TableHead className="text-right">Nuevo</TableHead>
-              <TableHead className="text-right">Diferencia</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {LABELS.map(({ key, label }) => {
-              const actual = precioActual[key]
-              const nuevo = precioNuevo[key]
-              const changed = actual !== nuevo
+        {/* Mobile stacked layout */}
+        <div className="md:hidden">
+          {LABELS.map(({ key, label }) => {
+            const actual = precioActual[key]
+            const nuevo = precioNuevo[key]
+            const changed = actual !== nuevo
 
-              if (!changed) {
+            if (!changed) return null
+
+            const { diff, pct } = formatDiff(actual, nuevo)
+            const color = diff > 0 ? "text-green-600" : "text-destructive"
+
+            return (
+              <div key={key} className="py-2 border-b last:border-b-0">
+                <p className="font-medium text-sm">{label}</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{formatPrice(actual)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className={`font-medium ${color}`}>
+                    {formatPrice(nuevo)} <span className={color}>({pct})</span>
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Desktop table layout */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-right">Actual</TableHead>
+                <TableHead className="text-right">Nuevo</TableHead>
+                <TableHead className="text-right">Diferencia</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {LABELS.map(({ key, label }) => {
+                const actual = precioActual[key]
+                const nuevo = precioNuevo[key]
+                const changed = actual !== nuevo
+
+                if (!changed) {
+                  return (
+                    <TableRow key={key}>
+                      <TableCell className="text-muted-foreground">{label}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatPrice(actual)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatPrice(nuevo)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">Sin cambio</TableCell>
+                    </TableRow>
+                  )
+                }
+
+                const { diff, text, pct } = formatDiff(actual, nuevo)
+                const color = diff > 0 ? "text-green-600" : "text-destructive"
+
                 return (
                   <TableRow key={key}>
-                    <TableCell className="text-muted-foreground">{label}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatPrice(actual)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatPrice(nuevo)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">Sin cambio</TableCell>
+                    <TableCell className="font-semibold">{label}</TableCell>
+                    <TableCell className="text-right">{formatPrice(actual)}</TableCell>
+                    <TableCell className={`text-right font-semibold ${color}`}>{formatPrice(nuevo)}</TableCell>
+                    <TableCell className={`text-right ${color}`}>
+                      {text} ({pct})
+                    </TableCell>
                   </TableRow>
                 )
-              }
-
-              const { diff, text, pct } = formatDiff(actual, nuevo)
-              const color = diff > 0 ? "text-green-600" : "text-destructive"
-
-              return (
-                <TableRow key={key}>
-                  <TableCell className="font-semibold">{label}</TableCell>
-                  <TableCell className="text-right">{formatPrice(actual)}</TableCell>
-                  <TableCell className={`text-right font-semibold ${color}`}>{formatPrice(nuevo)}</TableCell>
-                  <TableCell className={`text-right ${color}`}>
-                    {text} ({pct})
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+              })}
+            </TableBody>
+          </Table>
+        </div>
 
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>

@@ -15,16 +15,17 @@ export type TipoMovimiento =
   | "SALIDA_MERMA"
   | "AJUSTE_POSITIVO"
   | "AJUSTE_NEGATIVO"
-  | "SALIDA_TESTER"
+  | "SALIDA_PARCIAL"
   | "ENTRADA_CAMBIO"
 
 export type TipoVenta = "contado" | "credito"
 export type TipoPago = "efectivo" | "transferencia" | "retiro_sin_tarjeta"
 export type Periodicidad = "semanal" | "quincenal" | "mensual"
 export type EstadoCredito = "activo" | "liquidado"
-export type EstadoProducto = "nuevo" | "tester" | "parcial"
+export type EstadoProducto = "nuevo" | "parcial" | "segunda"
 export type EstadoVenta = "activa" | "cancelada"
-export type TipoDevolucion = "devolucion" | "cambio" | "anulacion"
+export type TipoDevolucion = "devolucion" | "anulacion"
+export type EstadoLineaCredito = "activa" | "liquidada" | "suspendida"
 
 export interface Database {
   public: {
@@ -532,6 +533,7 @@ export interface Database {
           estado_venta: string
           motivo_cancelacion: string | null
           fecha_cobro_especifica: string | null
+          linea_credito_id: string | null
           created_at: string
           updated_at: string
         }
@@ -551,6 +553,7 @@ export interface Database {
           estado_venta?: string
           motivo_cancelacion?: string | null
           fecha_cobro_especifica?: string | null
+          linea_credito_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -570,6 +573,7 @@ export interface Database {
           estado_venta?: string
           motivo_cancelacion?: string | null
           fecha_cobro_especifica?: string | null
+          linea_credito_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -609,6 +613,7 @@ export interface Database {
           tipo_pago: string
           cuenta_bancaria_id: string | null
           referencia_devolucion_id: string | null
+          linea_credito_id: string | null
           vendedor_id: string
           cliente_id: string
           fecha: string
@@ -621,6 +626,7 @@ export interface Database {
           tipo_pago: string
           cuenta_bancaria_id?: string | null
           referencia_devolucion_id?: string | null
+          linea_credito_id?: string | null
           vendedor_id: string
           cliente_id: string
           fecha?: string
@@ -633,6 +639,7 @@ export interface Database {
           tipo_pago?: string
           cuenta_bancaria_id?: string | null
           referencia_devolucion_id?: string | null
+          linea_credito_id?: string | null
           vendedor_id?: string
           cliente_id?: string
           fecha?: string
@@ -790,6 +797,7 @@ export interface Database {
         Row: {
           id: string
           venta_id: string
+          linea_credito_id: string | null
           periodo_inicio: string
           periodo_fin: string
           frecuencia: string
@@ -800,7 +808,8 @@ export interface Database {
         }
         Insert: {
           id?: string
-          venta_id: string
+          venta_id?: string
+          linea_credito_id?: string | null
           periodo_inicio: string
           periodo_fin: string
           frecuencia: string
@@ -812,6 +821,7 @@ export interface Database {
         Update: {
           id?: string
           venta_id?: string
+          linea_credito_id?: string | null
           periodo_inicio?: string
           periodo_fin?: string
           frecuencia?: string
@@ -851,6 +861,53 @@ export interface Database {
           datos_nuevos?: Record<string, unknown> | null
           motivo?: string | null
           created_at?: string
+        }
+      }
+      lineas_credito: {
+        Row: {
+          id: string
+          cliente_id: string
+          vendedor_id: string | null
+          saldo_total: number
+          saldo_pagado: number
+          meses_credito: number
+          periodicidad: string
+          fecha_inicio: string
+          fecha_siguiente_pago: string | null
+          fecha_cobro_especifica: string | null
+          estado: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          cliente_id: string
+          vendedor_id?: string | null
+          saldo_total: number
+          saldo_pagado?: number
+          meses_credito: number
+          periodicidad: string
+          fecha_inicio: string
+          fecha_siguiente_pago?: string | null
+          fecha_cobro_especifica?: string | null
+          estado?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          cliente_id?: string
+          vendedor_id?: string | null
+          saldo_total?: number
+          saldo_pagado?: number
+          meses_credito?: number
+          periodicidad?: string
+          fecha_inicio?: string
+          fecha_siguiente_pago?: string | null
+          fecha_cobro_especifica?: string | null
+          estado?: string
+          created_at?: string
+          updated_at?: string
         }
       }
     }
@@ -895,3 +952,4 @@ export type DevolucionDetalle = Tables<"devoluciones_detalle">
 export type SaldoFavor = Tables<"saldos_favor">
 export type CobranzaSeguimiento = Tables<"cobranza_seguimiento">
 export type VentaHistorial = Tables<"ventas_historial">
+export type LineaCredito = Database["public"]["Tables"]["lineas_credito"]["Row"]

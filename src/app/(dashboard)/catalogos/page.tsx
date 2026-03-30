@@ -100,91 +100,166 @@ function CatalogoTab({ table, fields }: { table: CatalogoTable; fields: string[]
           Agregar
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {fields.map((f) => (
-              <TableHead key={f} className="capitalize">
-                {f === "ml" ? "ML" : f}
-              </TableHead>
-            ))}
-            <TableHead>Estado</TableHead>
-            <TableHead className="w-24">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {adding && (
-            <TableRow>
+
+      {/* Mobile cards */}
+      <div className="space-y-2 md:hidden">
+        {adding && (
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+            <div className="grid gap-2">
               {fields.map((f) => (
-                <TableCell key={f}>
-                  <Input
-                    value={newValues[f] ?? ""}
-                    onChange={(e) => setNewValues({ ...newValues, [f]: e.target.value })}
-                    placeholder={f}
-                    type={f === "ml" ? "number" : "text"}
-                  />
-                </TableCell>
+                <Input
+                  key={f}
+                  value={newValues[f] ?? ""}
+                  onChange={(e) => setNewValues({ ...newValues, [f]: e.target.value })}
+                  placeholder={f === "ml" ? "ML" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  type={f === "ml" ? "number" : "text"}
+                />
               ))}
-              <TableCell />
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={saveNew} disabled={create.isPending}>
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={cancelAdd}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {items.length === 0 && !adding && (
-            <TableRow>
-              <TableCell colSpan={fields.length + 2} className="text-center text-muted-foreground">
-                Sin registros
-              </TableCell>
-            </TableRow>
-          )}
-          {items.map((item) => (
-            <TableRow key={item.id as string}>
-              {fields.map((f) => (
-                <TableCell key={f}>
-                  {editingId === item.id ? (
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={cancelAdd}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={saveNew} disabled={create.isPending}>
+                <Check className="mr-1 h-4 w-4" /> Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+        {items.length === 0 && !adding && (
+          <p className="text-center text-muted-foreground py-6">Sin registros</p>
+        )}
+        {items.map((item) => (
+          <div key={item.id as string} className="rounded-lg border p-3">
+            {editingId === item.id ? (
+              <div className="space-y-3">
+                <div className="grid gap-2">
+                  {fields.map((f) => (
                     <Input
+                      key={f}
                       value={editValues[f] ?? ""}
                       onChange={(e) => setEditValues({ ...editValues, [f]: e.target.value })}
+                      placeholder={f === "ml" ? "ML" : f.charAt(0).toUpperCase() + f.slice(1)}
                       type={f === "ml" ? "number" : "text"}
                     />
-                  ) : (
-                    String(item[f] ?? "")
-                  )}
-                </TableCell>
+                  ))}
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                    <X className="mr-1 h-4 w-4" /> Cancelar
+                  </Button>
+                  <Button size="sm" onClick={saveEdit} disabled={update.isPending}>
+                    <Check className="mr-1 h-4 w-4" /> Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {fields.map((f) => String(item[f] ?? "")).join(" · ")}
+                  </span>
+                  <Badge variant={item.activo ? "default" : "secondary"} className="text-xs">
+                    {item.activo ? "Activo" : "Inactivo"}
+                  </Badge>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {fields.map((f) => (
+                <TableHead key={f} className="capitalize">
+                  {f === "ml" ? "ML" : f}
+                </TableHead>
               ))}
-              <TableCell>
-                <Badge variant={item.activo ? "default" : "secondary"}>
-                  {item.activo ? "Activo" : "Inactivo"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {editingId === item.id ? (
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {adding && (
+              <TableRow>
+                {fields.map((f) => (
+                  <TableCell key={f}>
+                    <Input
+                      value={newValues[f] ?? ""}
+                      onChange={(e) => setNewValues({ ...newValues, [f]: e.target.value })}
+                      placeholder={f}
+                      type={f === "ml" ? "number" : "text"}
+                    />
+                  </TableCell>
+                ))}
+                <TableCell />
+                <TableCell>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={saveEdit} disabled={update.isPending}>
+                    <Button size="icon" variant="ghost" onClick={saveNew} disabled={create.isPending}>
                       <Check className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={cancelEdit}>
+                    <Button size="icon" variant="ghost" onClick={cancelAdd}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ) : (
-                  <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableCell>
+              </TableRow>
+            )}
+            {items.length === 0 && !adding && (
+              <TableRow>
+                <TableCell colSpan={fields.length + 2} className="text-center text-muted-foreground">
+                  Sin registros
+                </TableCell>
+              </TableRow>
+            )}
+            {items.map((item) => (
+              <TableRow key={item.id as string}>
+                {fields.map((f) => (
+                  <TableCell key={f}>
+                    {editingId === item.id ? (
+                      <Input
+                        value={editValues[f] ?? ""}
+                        onChange={(e) => setEditValues({ ...editValues, [f]: e.target.value })}
+                        type={f === "ml" ? "number" : "text"}
+                      />
+                    ) : (
+                      String(item[f] ?? "")
+                    )}
+                  </TableCell>
+                ))}
+                <TableCell>
+                  <Badge variant={item.activo ? "default" : "secondary"}>
+                    {item.activo ? "Activo" : "Inactivo"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {editingId === item.id ? (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={saveEdit} disabled={update.isPending}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEdit}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -207,48 +282,107 @@ function CuentasBancariasTab() {
           <Plus className="mr-2 h-4 w-4" /> Agregar
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Alias</TableHead>
-            <TableHead>CLABE</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="w-24">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {adding && (
-            <TableRow>
-              <TableCell><Input value={newAlias} onChange={e => setNewAlias(e.target.value)} placeholder="Alias" /></TableCell>
-              <TableCell><Input value={newClabe} onChange={e => setNewClabe(e.target.value)} placeholder="CLABE interbancaria" /></TableCell>
-              <TableCell />
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => { create.mutate({ alias: newAlias, clabe: newClabe }, { onSuccess: () => { setAdding(false); setNewAlias(""); setNewClabe("") } }) }} disabled={create.isPending}><Check className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setAdding(false)}><X className="h-4 w-4" /></Button>
+
+      {/* Mobile cards */}
+      <div className="space-y-2 md:hidden">
+        {adding && (
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+            <div className="grid gap-2">
+              <Input value={newAlias} onChange={e => setNewAlias(e.target.value)} placeholder="Alias" />
+              <Input value={newClabe} onChange={e => setNewClabe(e.target.value)} placeholder="CLABE interbancaria" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={() => { create.mutate({ alias: newAlias, clabe: newClabe }, { onSuccess: () => { setAdding(false); setNewAlias(""); setNewClabe("") } }) }} disabled={create.isPending}>
+                <Check className="mr-1 h-4 w-4" /> Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+        {(query.data ?? []).map(c => (
+          <div key={c.id} className="rounded-lg border p-3">
+            {editingId === c.id ? (
+              <div className="space-y-3">
+                <div className="grid gap-2">
+                  <Input value={editAlias} onChange={e => setEditAlias(e.target.value)} placeholder="Alias" />
+                  <Input value={editClabe} onChange={e => setEditClabe(e.target.value)} placeholder="CLABE interbancaria" />
                 </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {(query.data ?? []).map(c => (
-            <TableRow key={c.id}>
-              <TableCell>{editingId === c.id ? <Input value={editAlias} onChange={e => setEditAlias(e.target.value)} /> : c.alias}</TableCell>
-              <TableCell>{editingId === c.id ? <Input value={editClabe} onChange={e => setEditClabe(e.target.value)} /> : c.clabe}</TableCell>
-              <TableCell><Badge variant={c.activo ? "default" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge></TableCell>
-              <TableCell>
-                {editingId === c.id ? (
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => { update.mutate({ id: c.id, alias: editAlias, clabe: editClabe }, { onSuccess: () => setEditingId(null) }) }}><Check className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    <X className="mr-1 h-4 w-4" /> Cancelar
+                  </Button>
+                  <Button size="sm" onClick={() => { update.mutate({ id: c.id, alias: editAlias, clabe: editClabe }, { onSuccess: () => setEditingId(null) }) }}>
+                    <Check className="mr-1 h-4 w-4" /> Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{c.alias}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.clabe}</p>
                   </div>
-                ) : (
-                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}><Pencil className="h-4 w-4" /></Button>
-                )}
-              </TableCell>
+                  <Badge variant={c.activo ? "default" : "secondary"} className="text-xs shrink-0">
+                    {c.activo ? "Activo" : "Inactivo"}
+                  </Badge>
+                </div>
+                <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Alias</TableHead>
+              <TableHead>CLABE</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {adding && (
+              <TableRow>
+                <TableCell><Input value={newAlias} onChange={e => setNewAlias(e.target.value)} placeholder="Alias" /></TableCell>
+                <TableCell><Input value={newClabe} onChange={e => setNewClabe(e.target.value)} placeholder="CLABE interbancaria" /></TableCell>
+                <TableCell />
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => { create.mutate({ alias: newAlias, clabe: newClabe }, { onSuccess: () => { setAdding(false); setNewAlias(""); setNewClabe("") } }) }} disabled={create.isPending}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setAdding(false)}><X className="h-4 w-4" /></Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {(query.data ?? []).map(c => (
+              <TableRow key={c.id}>
+                <TableCell>{editingId === c.id ? <Input value={editAlias} onChange={e => setEditAlias(e.target.value)} /> : c.alias}</TableCell>
+                <TableCell>{editingId === c.id ? <Input value={editClabe} onChange={e => setEditClabe(e.target.value)} /> : c.clabe}</TableCell>
+                <TableCell><Badge variant={c.activo ? "default" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge></TableCell>
+                <TableCell>
+                  {editingId === c.id ? (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { update.mutate({ id: c.id, alias: editAlias, clabe: editClabe }, { onSuccess: () => setEditingId(null) }) }}><Check className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                    </div>
+                  ) : (
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}><Pencil className="h-4 w-4" /></Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -269,45 +403,95 @@ function CategoriasGastoTab() {
           <Plus className="mr-2 h-4 w-4" /> Agregar
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="w-24">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {adding && (
-            <TableRow>
-              <TableCell><Input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre de categoría" /></TableCell>
-              <TableCell />
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => { create.mutate({ nombre: newNombre }, { onSuccess: () => { setAdding(false); setNewNombre("") } }) }} disabled={create.isPending}><Check className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setAdding(false)}><X className="h-4 w-4" /></Button>
+
+      {/* Mobile cards */}
+      <div className="space-y-2 md:hidden">
+        {adding && (
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+            <Input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre de categoria" />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={() => { create.mutate({ nombre: newNombre }, { onSuccess: () => { setAdding(false); setNewNombre("") } }) }} disabled={create.isPending}>
+                <Check className="mr-1 h-4 w-4" /> Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+        {(query.data ?? []).map(c => (
+          <div key={c.id} className="rounded-lg border p-3">
+            {editingId === c.id ? (
+              <div className="space-y-3">
+                <Input value={editNombre} onChange={e => setEditNombre(e.target.value)} placeholder="Nombre de categoria" />
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    <X className="mr-1 h-4 w-4" /> Cancelar
+                  </Button>
+                  <Button size="sm" onClick={() => { update.mutate({ id: c.id, nombre: editNombre }, { onSuccess: () => setEditingId(null) }) }}>
+                    <Check className="mr-1 h-4 w-4" /> Guardar
+                  </Button>
                 </div>
-              </TableCell>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{c.nombre}</span>
+                  <Badge variant={c.activo ? "default" : "secondary"} className="text-xs">
+                    {c.activo ? "Activo" : "Inactivo"}
+                  </Badge>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
             </TableRow>
-          )}
-          {(query.data ?? []).map(c => (
-            <TableRow key={c.id}>
-              <TableCell>{editingId === c.id ? <Input value={editNombre} onChange={e => setEditNombre(e.target.value)} /> : c.nombre}</TableCell>
-              <TableCell><Badge variant={c.activo ? "default" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge></TableCell>
-              <TableCell>
-                {editingId === c.id ? (
+          </TableHeader>
+          <TableBody>
+            {adding && (
+              <TableRow>
+                <TableCell><Input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre de categoria" /></TableCell>
+                <TableCell />
+                <TableCell>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => { update.mutate({ id: c.id, nombre: editNombre }, { onSuccess: () => setEditingId(null) }) }}><Check className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => { create.mutate({ nombre: newNombre }, { onSuccess: () => { setAdding(false); setNewNombre("") } }) }} disabled={create.isPending}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setAdding(false)}><X className="h-4 w-4" /></Button>
                   </div>
-                ) : (
-                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}><Pencil className="h-4 w-4" /></Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableCell>
+              </TableRow>
+            )}
+            {(query.data ?? []).map(c => (
+              <TableRow key={c.id}>
+                <TableCell>{editingId === c.id ? <Input value={editNombre} onChange={e => setEditNombre(e.target.value)} /> : c.nombre}</TableCell>
+                <TableCell><Badge variant={c.activo ? "default" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge></TableCell>
+                <TableCell>
+                  {editingId === c.id ? (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { update.mutate({ id: c.id, nombre: editNombre }, { onSuccess: () => setEditingId(null) }) }}><Check className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                    </div>
+                  ) : (
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}><Pencil className="h-4 w-4" /></Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -315,19 +499,21 @@ function CategoriasGastoTab() {
 export default function CatalogosPage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Catálogos</h1>
+      <h1 className="text-2xl font-bold">Catalogos</h1>
       <Card>
         <CardContent className="pt-6">
           <Tabs defaultValue="cat_genero">
-            <TabsList className="mb-4 flex-wrap">
-              {catalogos.map((c) => (
-                <TabsTrigger key={c.key} value={c.key}>
-                  {c.label}
-                </TabsTrigger>
-              ))}
-              <TabsTrigger value="cuentas_bancarias">Cuentas Bancarias</TabsTrigger>
-              <TabsTrigger value="categorias_gasto">Cat. Gasto</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <TabsList className="mb-4 w-max">
+                {catalogos.map((c) => (
+                  <TabsTrigger key={c.key} value={c.key}>
+                    {c.label}
+                  </TabsTrigger>
+                ))}
+                <TabsTrigger value="cuentas_bancarias">Cuentas Bancarias</TabsTrigger>
+                <TabsTrigger value="categorias_gasto">Cat. Gasto</TabsTrigger>
+              </TabsList>
+            </div>
             {catalogos.map((c) => (
               <TabsContent key={c.key} value={c.key}>
                 <CatalogoTab table={c.key} fields={c.fields} />
