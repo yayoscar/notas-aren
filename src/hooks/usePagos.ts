@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import type { Pago } from "@/lib/supabase/types"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 export type CreditoConSaldo = {
   id: string
@@ -113,7 +114,9 @@ export function useCrearAbono() {
           cuenta_bancaria_id: input.cuenta_bancaria_id ?? null,
           vendedor_id: input.vendedor_id,
           cliente_id: input.cliente_id,
-          fecha: input.fecha ?? new Date().toISOString(),
+          fecha: input.fecha
+            ? localDateToISO(input.fecha)
+            : new Date().toISOString(),
         })
         .select()
         .single()

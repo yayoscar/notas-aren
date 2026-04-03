@@ -34,6 +34,17 @@ export function parseLocalDate(dateStr: string): Date {
   return new Date(dateStr + "T12:00:00")
 }
 
+/**
+ * Convert a date-only string (YYYY-MM-DD) to a full ISO timestamp
+ * safe from timezone shift. Uses noon local time so the calendar day
+ * is preserved regardless of UTC offset.
+ * If the string already contains "T" (i.e. it's already an ISO timestamp), returns as-is.
+ */
+export function localDateToISO(dateStr: string): string {
+  if (dateStr.includes("T")) return dateStr
+  return new Date(dateStr + "T12:00:00").toISOString()
+}
+
 /** Format a date string (YYYY-MM-DD or ISO timestamp) for display in es-MX locale. */
 export function formatDate(dateStr: string): string {
   return parseLocalDate(dateStr).toLocaleDateString("es-MX")

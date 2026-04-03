@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 import {
   startOfWeek,
   endOfWeek,
@@ -315,7 +316,7 @@ export function useAsignarFechaCobro() {
     }) => {
       const { error } = await supabase
         .from("lineas_credito")
-        .update({ fecha_cobro_especifica: input.fecha_cobro_especifica })
+        .update({ fecha_cobro_especifica: input.fecha_cobro_especifica ? localDateToISO(input.fecha_cobro_especifica) : null })
         .eq("id", input.linea_credito_id)
       if (error) throw error
     },

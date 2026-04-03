@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import type { Gasto } from "@/lib/supabase/types"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 export type GastoWithRelations = Gasto & {
   cat_categoria_gasto: { nombre: string } | null
@@ -35,7 +36,7 @@ export function useGastos() {
     ) => {
       const { data, error } = await supabase
         .from("gastos")
-        .insert(values)
+        .insert({ ...values, fecha: localDateToISO(values.fecha) })
         .select()
         .single()
       if (error) throw error

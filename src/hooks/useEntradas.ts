@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import type { Entrada } from "@/lib/supabase/types"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 export type EntradaWithProveedor = Entrada & {
   proveedores: { nombre: string } | null
@@ -65,7 +66,12 @@ export function useEntradas() {
 
       const { data: entrada, error: entradaError } = await supabase
         .from("entradas")
-        .insert({ ...entradaData, total })
+        .insert({
+          ...entradaData,
+          total,
+          fecha: localDateToISO(entradaData.fecha),
+          fecha_factura: entradaData.fecha_factura ? localDateToISO(entradaData.fecha_factura) : null,
+        })
         .select()
         .single()
       if (entradaError) throw entradaError

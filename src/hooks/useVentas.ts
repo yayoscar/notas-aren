@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import type { Venta, VentaDetalle, Pago } from "@/lib/supabase/types"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 export type VentaWithRelations = Venta & {
   vendedores: { nombre: string } | null
@@ -125,8 +126,8 @@ export function useVentas() {
               saldo_total: total,
               meses_credito: ventaData.meses_credito ?? 2,
               periodicidad: ventaData.periodicidad ?? "quincenal",
-              fecha_inicio: ventaData.fecha_primer_pago ?? ventaData.fecha,
-              fecha_siguiente_pago: ventaData.fecha_primer_pago ?? null,
+              fecha_inicio: localDateToISO(ventaData.fecha_primer_pago ?? ventaData.fecha),
+              fecha_siguiente_pago: ventaData.fecha_primer_pago ? localDateToISO(ventaData.fecha_primer_pago) : null,
               estado: "activa",
             })
             .select()
@@ -150,6 +151,8 @@ export function useVentas() {
           ...ventaData,
           folio,
           total,
+          fecha: localDateToISO(ventaData.fecha),
+          fecha_primer_pago: ventaData.fecha_primer_pago ? localDateToISO(ventaData.fecha_primer_pago) : null,
           estado_credito:
             ventaData.tipo_venta === "credito" ? "activo" : null,
           linea_credito_id: resolvedLineaCreditoId,
@@ -227,7 +230,7 @@ export function useVentas() {
         await supabase.from("lineas_credito").update({
           meses_credito: ajuste_meses_credito,
           periodicidad: ajuste_periodicidad,
-          fecha_siguiente_pago: ajuste_fecha_siguiente_pago,
+          fecha_siguiente_pago: localDateToISO(ajuste_fecha_siguiente_pago),
           updated_at: new Date().toISOString(),
         }).eq("id", resolvedLineaCreditoId)
       }

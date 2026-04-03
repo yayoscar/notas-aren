@@ -24,26 +24,36 @@ export function generateTemplate(
   XLSX.writeFile(wb, `${fileName}.xlsx`)
 }
 
+function formatCellValue(val: unknown): string {
+  if (val === undefined || val === null) return ""
+  if (val instanceof Date) {
+    const dd = String(val.getDate()).padStart(2, "0")
+    const mm = String(val.getMonth() + 1).padStart(2, "0")
+    const yyyy = val.getFullYear()
+    return `${dd}/${mm}/${yyyy}`
+  }
+  return String(val).trim()
+}
+
 export async function parseExcelFile(
   file: File
 ): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
   const buffer = await file.arrayBuffer()
-  const wb = XLSX.read(buffer, { type: "array" })
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true })
   const ws = wb.Sheets[wb.SheetNames[0]]
 
   if (!ws) throw new Error("El archivo no contiene hojas de datos")
 
-  const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 })
+  const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 })
   if (raw.length === 0) throw new Error("El archivo está vacío")
 
-  const headers = (raw[0] as string[]).map((h) => String(h).trim())
-  const dataRows = raw.slice(1).filter((row) => row.some((cell) => cell !== undefined && cell !== ""))
+  const headers = (raw[0] as unknown[]).map((h) => String(h).trim())
+  const dataRows = raw.slice(1).filter((row) => (row as unknown[]).some((cell) => cell !== undefined && cell !== ""))
 
   const rows = dataRows.map((row) => {
     const obj: Record<string, string> = {}
     headers.forEach((h, i) => {
-      const val = (row as string[])[i]
-      obj[h] = val !== undefined && val !== null ? String(val).trim() : ""
+      obj[h] = formatCellValue((row as unknown[])[i])
     })
     return obj
   })

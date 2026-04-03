@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { recalcularCuotasCredito } from "@/lib/calculos/credito"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 interface ProductoDevueltoInput {
   producto_id: string
@@ -93,7 +94,7 @@ export function useDevolucionUnificada() {
           tipo: tipoFinal,
           vendedor_id: input.vendedor_id,
           cliente_id: input.cliente_id,
-          fecha: input.fecha,
+          fecha: localDateToISO(input.fecha),
           monto_original: montoDevuelto,
           monto_nuevo: null,
           diferencia: montoDevuelto,

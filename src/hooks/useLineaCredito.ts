@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { localDateToISO } from "@/lib/utils"
 
 export function useLineaCreditoCliente(clienteId: string) {
   const supabase = createClient()
@@ -62,8 +63,8 @@ export function useCrearLineaCredito() {
           saldo_total: input.saldo_total,
           meses_credito: input.meses_credito,
           periodicidad: input.periodicidad,
-          fecha_inicio: input.fecha_inicio,
-          fecha_siguiente_pago: input.fecha_siguiente_pago,
+          fecha_inicio: localDateToISO(input.fecha_inicio),
+          fecha_siguiente_pago: localDateToISO(input.fecha_siguiente_pago),
           estado: "activa",
         })
         .select()
@@ -96,7 +97,7 @@ export function useAjustarPlanPagos() {
         .update({
           meses_credito: input.meses_credito,
           periodicidad: input.periodicidad,
-          fecha_siguiente_pago: input.fecha_siguiente_pago,
+          fecha_siguiente_pago: localDateToISO(input.fecha_siguiente_pago),
           updated_at: new Date().toISOString(),
         })
         .eq("id", input.linea_credito_id)
