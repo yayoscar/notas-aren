@@ -17,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search } from "lucide-react"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 export default function GastosPage() {
   const { query } = useGastos()
@@ -88,7 +88,7 @@ export default function GastosPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">
-                        {new Date(g.fecha).toLocaleDateString("es-MX")}
+                        {formatDate(g.fecha)}
                       </span>
                       <Badge variant="secondary">
                         {g.cat_categoria_gasto?.nombre ?? "—"}
@@ -135,7 +135,7 @@ export default function GastosPage() {
                     {filtered.map((g) => (
                       <TableRow key={g.id}>
                         <TableCell>
-                          {new Date(g.fecha).toLocaleDateString("es-MX")}
+                          {formatDate(g.fecha)}
                         </TableCell>
                         <TableCell className="font-medium">{g.concepto}</TableCell>
                         <TableCell>

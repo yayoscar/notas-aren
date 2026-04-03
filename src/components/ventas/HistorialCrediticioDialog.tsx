@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 import type { LineaCredito } from "@/lib/supabase/types"
 
 interface Props {
@@ -81,7 +81,7 @@ export function HistorialCrediticioDialog({
                   <div key={lc.id} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {new Date(lc.fecha_inicio).toLocaleDateString("es-MX")}
+                        {formatDate(lc.fecha_inicio)}
                       </span>
                       <Badge
                         variant={
@@ -138,7 +138,7 @@ export function HistorialCrediticioDialog({
                     return (
                       <TableRow key={lc.id}>
                         <TableCell>
-                          {new Date(lc.fecha_inicio).toLocaleDateString("es-MX")}
+                          {formatDate(lc.fecha_inicio)}
                         </TableCell>
                         <TableCell className="capitalize">
                           {lc.periodicidad}

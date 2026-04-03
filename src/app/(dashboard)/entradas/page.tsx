@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus } from "lucide-react"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 export default function EntradasPage() {
   const { query } = useEntradas()
@@ -40,19 +40,19 @@ export default function EntradasPage() {
                   </p>
                 )}
                 {query.data?.map((e) => (
-                  <div key={e.id} className="rounded-lg border p-3">
+                  <Link key={e.id} href={`/entradas/${e.id}`} className="block rounded-lg border p-3 hover:bg-accent transition-colors">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-mono font-medium">{e.folio}</span>
                       <span className="font-mono tabular-nums font-medium">{formatMoney(Number(e.total))}</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>{e.proveedores?.nombre ?? "—"}</span>
-                      <span>{new Date(e.fecha).toLocaleDateString("es-MX")}</span>
+                      <span>{formatDate(e.fecha)}</span>
                     </div>
                     {e.numero_factura && (
                       <p className="text-xs text-muted-foreground">Factura: {e.numero_factura}</p>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
 
@@ -78,9 +78,13 @@ export default function EntradasPage() {
                     )}
                     {query.data?.map((e) => (
                       <TableRow key={e.id}>
-                        <TableCell className="font-mono font-medium">{e.folio}</TableCell>
+                        <TableCell>
+                          <Link href={`/entradas/${e.id}`} className="font-mono font-medium hover:underline">
+                            {e.folio}
+                          </Link>
+                        </TableCell>
                         <TableCell>{e.proveedores?.nombre ?? "—"}</TableCell>
-                        <TableCell>{new Date(e.fecha).toLocaleDateString("es-MX")}</TableCell>
+                        <TableCell>{formatDate(e.fecha)}</TableCell>
                         <TableCell>{e.numero_factura ?? "—"}</TableCell>
                         <TableCell className="text-right font-mono">{formatMoney(Number(e.total))}</TableCell>
                       </TableRow>

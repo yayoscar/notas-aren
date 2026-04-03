@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { localToday } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -130,7 +131,7 @@ export function CreditoFields({
             <Label>Fecha del primer pago *</Label>
             <Input
               type="date"
-              min={new Date().toISOString().split("T")[0]}
+              min={localToday()}
               value={fechaPrimerPago}
               onChange={(e) => onFechaPrimerPagoChange(e.target.value)}
             />

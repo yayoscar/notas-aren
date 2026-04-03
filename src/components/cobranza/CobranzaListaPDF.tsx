@@ -7,7 +7,7 @@ import {
   Text,
   StyleSheet,
 } from "@react-pdf/renderer"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 import type { CreditoCobranza } from "@/hooks/useCobranza"
 
 const styles = StyleSheet.create({
@@ -99,7 +99,7 @@ const rangoLabels: Record<string, string> = {
 function formatFecha(fecha: string | null): string {
   if (!fecha) return "—"
   try {
-    return new Date(fecha + "T12:00:00").toLocaleDateString("es-MX")
+    return formatDate(fecha)
   } catch {
     return "—"
   }

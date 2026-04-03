@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isBefore, addDays } from "date-fns"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 export default function SeguimientoPagosPage() {
   const { data: creditos, isLoading } = useCreditosActivos()
@@ -78,7 +78,7 @@ export default function SeguimientoPagosPage() {
                       {c.clientes?.nombre}
                     </span>
                     <Badge variant="destructive">
-                      {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                      {formatDate(c.fecha_siguiente_pago!)}
                     </Badge>
                   </div>
                   <div className="mt-1 flex items-center justify-between">
@@ -117,7 +117,7 @@ export default function SeguimientoPagosPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="destructive">
-                        {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                        {formatDate(c.fecha_siguiente_pago!)}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -147,7 +147,7 @@ export default function SeguimientoPagosPage() {
                       {c.clientes?.nombre}
                     </span>
                     <Badge variant="outline">
-                      {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                      {formatDate(c.fecha_siguiente_pago!)}
                     </Badge>
                   </div>
                   <div className="mt-1 flex items-center justify-between">
@@ -186,7 +186,7 @@ export default function SeguimientoPagosPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {new Date(c.fecha_siguiente_pago!).toLocaleDateString("es-MX")}
+                        {formatDate(c.fecha_siguiente_pago!)}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -223,7 +223,7 @@ export default function SeguimientoPagosPage() {
                   </span>
                   {c.fecha_siguiente_pago && (
                     <span className="text-xs text-muted-foreground">
-                      Sig. pago: {new Date(c.fecha_siguiente_pago).toLocaleDateString("es-MX")}
+                      Sig. pago: {formatDate(c.fecha_siguiente_pago)}
                     </span>
                   )}
                 </div>
@@ -319,7 +319,7 @@ export default function SeguimientoPagosPage() {
                   </TableCell>
                   <TableCell>
                     {c.fecha_siguiente_pago
-                      ? new Date(c.fecha_siguiente_pago).toLocaleDateString("es-MX")
+                      ? formatDate(c.fecha_siguiente_pago)
                       : "—"}
                   </TableCell>
                 </TableRow>

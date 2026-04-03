@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Trash2, CreditCard } from "lucide-react"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 const MapPicker = dynamic(
   () => import("@/components/clientes/MapPicker").then((m) => m.MapPicker),
@@ -124,7 +124,7 @@ export default function ClienteDetailPage() {
                 <DetailRow label="Correo" value={c.correo} />
                 <DetailRow
                   label="Fecha de nacimiento"
-                  value={c.fecha_nacimiento ? new Date(c.fecha_nacimiento).toLocaleDateString("es-MX") : null}
+                  value={c.fecha_nacimiento ? formatDate(c.fecha_nacimiento) : null}
                 />
               </div>
             </CardContent>
@@ -280,7 +280,7 @@ export default function ClienteDetailPage() {
                         </div>
                         <div className="flex justify-between text-xs mt-1">
                           <span className="text-muted-foreground">
-                            {new Date(v.fecha).toLocaleDateString("es-MX")}
+                            {formatDate(v.fecha)}
                           </span>
                           <span className="font-mono tabular-nums">{formatMoney(Number(v.total))}</span>
                         </div>
@@ -319,7 +319,7 @@ export default function ClienteDetailPage() {
                                 {v.folio}
                               </Link>
                             </TableCell>
-                            <TableCell>{new Date(v.fecha).toLocaleDateString("es-MX")}</TableCell>
+                            <TableCell>{formatDate(v.fecha)}</TableCell>
                             <TableCell>
                               <Badge variant={v.tipo_venta === "credito" ? "default" : "outline"}>
                                 {v.tipo_venta === "credito" ? "Crédito" : "Contado"}

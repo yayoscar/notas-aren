@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, localToday } from "@/lib/utils"
 import { pdf } from "@react-pdf/renderer"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
 import {
@@ -44,6 +44,7 @@ interface Props {
   vendedorId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  cantidadesDevueltas?: Record<string, number>
 }
 
 interface ProductoDevuelto {
@@ -67,6 +68,7 @@ export function DevolucionUnificadaDialog({
   vendedorId,
   open,
   onOpenChange,
+  cantidadesDevueltas = {},
 }: Props) {
   const mutation = useDevolucionUnificada()
   const { data: lineaActiva } = useLineaCreditoCliente(venta.cliente_id)
@@ -98,10 +100,14 @@ export function DevolucionUnificadaDialog({
     montoDevueltoEfectivo: number
   } | null>(null)
 
-  // Productos de la venta como devueltos seleccionables
+  // Productos de la venta como devueltos seleccionables (excluyendo ya devueltos)
   const [productosDevueltos, setProductosDevueltos] = useState<ProductoDevuelto[]>(
-    () =>
-      (venta.ventas_detalle ?? []).map((d) => {
+    () => {
+      const resultado: ProductoDevuelto[] = []
+      for (const d of venta.ventas_detalle ?? []) {
+        const yaDevuelto = cantidadesDevueltas[d.producto_id] ?? 0
+        const cantidadDisponible = d.cantidad - yaDevuelto
+        if (cantidadDisponible <= 0) continue
         const estadoProd = d.productos?.estado_producto ?? "nuevo"
         const precioRef = venta.tipo_venta === "contado"
           ? (d.productos as Record<string, unknown>)?.precio_venta_contado as number | undefined
@@ -109,20 +115,22 @@ export function DevolucionUnificadaDialog({
         const pctCompra = precioRef && precioRef > 0 && estadoProd !== "nuevo"
           ? Math.round((d.precio_unitario / precioRef) * 100)
           : null
-        return {
+        resultado.push({
           producto_id: d.producto_id,
           nombre: d.productos?.nombre ?? "—",
-          cantidad_max: d.cantidad,
-          cantidad: d.cantidad,
-          estado_devuelto: "nuevo" as const,
+          cantidad_max: cantidadDisponible,
+          cantidad: cantidadDisponible,
+          estado_devuelto: "nuevo",
           precio_original: d.precio_unitario,
           precio_depreciado: d.precio_unitario,
           porcentaje: 50,
           seleccionado: false,
           estado_compra: estadoProd,
           porcentaje_compra: pctCompra,
-        }
-      })
+        })
+      }
+      return resultado
+    }
   )
 
   // Validacion de dias configurable
@@ -246,7 +254,7 @@ export function DevolucionUnificadaDialog({
         tipo: esAnulacion ? "anulacion" : "devolucion",
         vendedor_id: vendedorId,
         cliente_id: venta.cliente_id,
-        fecha: new Date().toISOString().split("T")[0],
+        fecha: localToday(),
         motivo,
         productos_devueltos: productosSeleccionados.map((p) => ({
           producto_id: p.producto_id,

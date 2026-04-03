@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useVenta } from "@/hooks/useVentas"
+import { useDevoluciones } from "@/hooks/useDevoluciones"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { useCrearAbono } from "@/hooks/usePagos"
 import { usePagosByLinea } from "@/hooks/useLineaCredito"
@@ -28,7 +29,7 @@ import { pdf } from "@react-pdf/renderer"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
 import { Share2, Download, Printer, RotateCcw } from "lucide-react"
 import { AbonoTicketPDF } from "@/components/ventas/AbonoTicketPDF"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 function DetailRow({
   label,
@@ -51,6 +52,19 @@ export default function VentaDetailPage() {
   const { data: venta, isLoading } = useVenta(id)
   const { vendedor } = useVendedorActual()
   const crearAbono = useCrearAbono()
+
+  const { data: devoluciones } = useDevoluciones(id)
+
+  const devueltoPorProducto = useMemo(() => {
+    const map: Record<string, number> = {}
+    if (!devoluciones) return map
+    for (const dev of devoluciones) {
+      for (const det of dev.devoluciones_detalle) {
+        map[det.producto_id] = (map[det.producto_id] ?? 0) + det.cantidad
+      }
+    }
+    return map
+  }, [devoluciones])
 
   const [showAbonoForm, setShowAbonoForm] = useState(false)
   const [abonoMonto, setAbonoMonto] = useState(0)
@@ -230,12 +244,13 @@ export default function VentaDetailPage() {
         </div>
       )}
 
-      {esActiva && vendedor && (
+      {esActiva && vendedor && devolucionDialogOpen && (
         <DevolucionUnificadaDialog
           venta={venta}
           vendedorId={vendedor.id}
           open={devolucionDialogOpen}
           onOpenChange={setDevolucionDialogOpen}
+          cantidadesDevueltas={devueltoPorProducto}
         />
       )}
 
@@ -259,7 +274,7 @@ export default function VentaDetailPage() {
                 <DetailRow label="Vendedor" value={venta.vendedores?.nombre} />
                 <DetailRow
                   label="Fecha"
-                  value={new Date(venta.fecha).toLocaleDateString("es-MX")}
+                  value={formatDate(venta.fecha)}
                 />
                 <DetailRow label="Total" value={formatMoney(venta.total)} />
                 {venta.tipo_venta === "credito" && (
@@ -282,9 +297,7 @@ export default function VentaDetailPage() {
                       label="Primer pago"
                       value={
                         venta.fecha_primer_pago
-                          ? new Date(
-                              venta.fecha_primer_pago
-                            ).toLocaleDateString("es-MX")
+                          ? formatDate(venta.fecha_primer_pago)
                           : null
                       }
                     />
@@ -312,20 +325,30 @@ export default function VentaDetailPage() {
                 {(venta.ventas_detalle ?? []).length === 0 && (
                   <p className="text-center text-sm text-muted-foreground py-4">Sin productos</p>
                 )}
-                {(venta.ventas_detalle ?? []).map((d) => (
-                  <div key={d.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{d.productos?.nombre ?? "—"}</p>
-                      {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
-                        const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
-                        const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
-                        const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
-                        return (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                            {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}
+                {(venta.ventas_detalle ?? []).map((d) => {
+                  const cantDevuelta = devueltoPorProducto[d.producto_id] ?? 0
+                  const totalmenteDevuelto = cantDevuelta >= d.cantidad
+                  return (
+                  <div key={d.id} className={`rounded-lg border p-3${totalmenteDevuelto ? " opacity-50" : ""}`}>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className={`text-sm font-medium${totalmenteDevuelto ? " line-through" : ""}`}>{d.productos?.nombre ?? "—"}</p>
+                      <div className="flex items-center gap-1">
+                        {cantDevuelta > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600 bg-orange-50">
+                            Devuelto{cantDevuelta < d.cantidad ? ` (${cantDevuelta})` : ""}
                           </Badge>
-                        )
-                      })()}
+                        )}
+                        {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
+                          const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
+                          const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
+                          const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
+                          return (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                              {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}
+                            </Badge>
+                          )
+                        })()}
+                      </div>
                     </div>
                     <div className="flex justify-between text-xs mt-1">
                       <span>Cant: {d.cantidad}</span>
@@ -333,7 +356,8 @@ export default function VentaDetailPage() {
                       <span className="font-bold font-mono tabular-nums">{formatMoney(d.subtotal)}</span>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Desktop table */}
@@ -348,13 +372,21 @@ export default function VentaDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(venta.ventas_detalle ?? []).map((d) => (
-                      <TableRow key={d.id}>
+                    {(venta.ventas_detalle ?? []).map((d) => {
+                      const cantDevuelta = devueltoPorProducto[d.producto_id] ?? 0
+                      const totalmenteDevuelto = cantDevuelta >= d.cantidad
+                      return (
+                      <TableRow key={d.id} className={totalmenteDevuelto ? "opacity-50" : ""}>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
-                            <p className="font-medium">
+                            <p className={`font-medium${totalmenteDevuelto ? " line-through" : ""}`}>
                               {d.productos?.nombre ?? "—"}
                             </p>
+                            {cantDevuelta > 0 && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600 bg-orange-50">
+                                Devuelto{cantDevuelta < d.cantidad ? ` (${cantDevuelta})` : ""}
+                              </Badge>
+                            )}
                             {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
                               const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
                               const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
@@ -380,7 +412,8 @@ export default function VentaDetailPage() {
                           {formatMoney(d.subtotal)}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -519,7 +552,7 @@ export default function VentaDetailPage() {
                                   : "Retiro s/tarjeta"}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            {new Date(p.fecha).toLocaleDateString("es-MX")}
+                            {formatDate(p.fecha)}
                           </span>
                         </div>
                         <div className="flex items-baseline gap-3 mt-1">
@@ -556,7 +589,7 @@ export default function VentaDetailPage() {
                                     fechaVenta={venta.fecha}
                                   />
                                 ).toBlob()
-                                await downloadPDF(blob, `abono-${venta.folio}-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                                await downloadPDF(blob, `abono-${venta.folio}-${p.fecha.split("T")[0]}.pdf`)
                               } catch {
                                 // PDF generation failed silently
                               }
@@ -605,7 +638,7 @@ export default function VentaDetailPage() {
                         return (
                           <TableRow key={p.id}>
                             <TableCell>
-                              {new Date(p.fecha).toLocaleDateString("es-MX")}
+                              {formatDate(p.fecha)}
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               {formatMoney(p.monto)}
@@ -653,7 +686,7 @@ export default function VentaDetailPage() {
                                         fechaVenta={venta.fecha}
                                       />
                                     ).toBlob()
-                                    await downloadPDF(blob, `abono-${venta.folio}-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                                    await downloadPDF(blob, `abono-${venta.folio}-${p.fecha.split("T")[0]}.pdf`)
                                   } catch {
                                     // PDF generation failed silently
                                   }

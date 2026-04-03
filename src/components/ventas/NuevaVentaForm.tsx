@@ -45,7 +45,7 @@ import { useClientes } from "@/hooks/useClientes"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { useLineaCreditoCliente, useUltimoPagoLinea } from "@/hooks/useLineaCredito"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, localToday, formatDate } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { CheckCircle2, Share2, Download } from "lucide-react"
 import type { Producto } from "@/lib/supabase/types"
@@ -64,7 +64,7 @@ export function NuevaVentaForm() {
   const { query: clientesQuery } = useClientes()
   const { vendedor } = useVendedorActual()
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = localToday()
 
   const [clienteId, setClienteId] = useState("")
   const [tipoVenta, setTipoVenta] = useState<TipoVenta>("contado")
@@ -497,7 +497,7 @@ export function NuevaVentaForm() {
           <div>
             <p className="text-muted-foreground">Fecha</p>
             <p className="font-medium">
-              {new Date(fecha).toLocaleDateString("es-MX")}
+              {formatDate(fecha)}
             </p>
           </div>
           {tipoVenta === "contado" && pagoTipo && (
@@ -530,7 +530,7 @@ export function NuevaVentaForm() {
                 <p className="text-muted-foreground">Primer pago</p>
                 <p className="font-medium">
                   {fechaPrimerPago
-                    ? new Date(fechaPrimerPago).toLocaleDateString("es-MX")
+                    ? formatDate(fechaPrimerPago)
                     : "—"}
                 </p>
               </div>
@@ -797,7 +797,7 @@ export function NuevaVentaForm() {
                         <p className="text-[10px] text-muted-foreground">Ultimo pago</p>
                         <p className="text-xs font-medium">
                           {ultimoPagoQuery.data
-                            ? `${new Date(ultimoPagoQuery.data.fecha).toLocaleDateString("es-MX")} — ${formatMoney(ultimoPagoQuery.data.monto)}`
+                            ? `${formatDate(ultimoPagoQuery.data.fecha)} — ${formatMoney(ultimoPagoQuery.data.monto)}`
                             : "Sin pagos"}
                         </p>
                       </div>
@@ -805,7 +805,7 @@ export function NuevaVentaForm() {
                         <p className="text-[10px] text-muted-foreground">Proximo pago</p>
                         <p className="text-xs font-medium">
                           {lineaActiva.fecha_siguiente_pago
-                            ? new Date(lineaActiva.fecha_siguiente_pago).toLocaleDateString("es-MX")
+                            ? formatDate(lineaActiva.fecha_siguiente_pago)
                             : "—"}
                         </p>
                       </div>

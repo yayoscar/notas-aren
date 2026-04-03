@@ -15,7 +15,7 @@ import {
   format,
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, parseLocalDate } from "@/lib/utils"
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 10, fontFamily: "Helvetica" },
@@ -71,7 +71,7 @@ function calcularFechasPago(
   maxCuotas: number
 ): CuotaProgramada[] {
   const pagos: CuotaProgramada[] = []
-  let fechaActual = new Date(fechaPrimerPago + "T12:00:00")
+  let fechaActual = parseLocalDate(fechaPrimerPago)
   let acumulado = 0
   let numero = 1
 

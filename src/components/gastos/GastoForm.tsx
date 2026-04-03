@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { localToday } from "@/lib/utils"
 
 interface Props {
   onSubmit: (values: GastoFormValues) => void
@@ -26,7 +27,7 @@ export function GastoForm({ onSubmit, isPending }: Props) {
   const { activas: categorias } = useCategoriasGasto()
   const { activas: cuentas } = useCuentasBancarias()
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = localToday()
 
   const {
     register,

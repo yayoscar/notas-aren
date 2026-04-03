@@ -17,7 +17,7 @@ import { AbonoTicketPDF } from "@/components/ventas/AbonoTicketPDF"
 import { useCrearAbono } from "@/hooks/usePagos"
 import { useAjustarPlanPagos } from "@/hooks/useLineaCredito"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, localToday, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { pdf } from "@react-pdf/renderer"
 import { downloadPDF } from "@/lib/pdf-utils"
@@ -41,7 +41,7 @@ export function AbonoCobranzaDialog({ credito, open, onOpenChange }: Props) {
   const [monto, setMonto] = useState(0)
   const [tipoPago, setTipoPago] = useState("efectivo")
   const [cuentaId, setCuentaId] = useState<string | null>(null)
-  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0])
+  const [fecha, setFecha] = useState(localToday())
   const [paso, setPaso] = useState<Paso>("form")
   const [opcionAjuste, setOpcionAjuste] = useState<OpcionAjuste>("reducir_periodos")
 
@@ -62,7 +62,7 @@ export function AbonoCobranzaDialog({ credito, open, onOpenChange }: Props) {
       setOpcionAjuste("reducir_periodos")
       setTipoPago("efectivo")
       setCuentaId(null)
-      setFecha(new Date().toISOString().split("T")[0])
+      setFecha(localToday())
     }
   }, [credito, open, cuota])
 
@@ -94,7 +94,7 @@ export function AbonoCobranzaDialog({ credito, open, onOpenChange }: Props) {
     setMonto(0)
     setTipoPago("efectivo")
     setCuentaId(null)
-    setFecha(new Date().toISOString().split("T")[0])
+    setFecha(localToday())
     setPaso("form")
     setOpcionAjuste("reducir_periodos")
   }
@@ -227,7 +227,7 @@ export function AbonoCobranzaDialog({ credito, open, onOpenChange }: Props) {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Sig. pago</p>
-                  <p>{credito.fecha_siguiente_pago ? new Date(credito.fecha_siguiente_pago + "T12:00:00").toLocaleDateString("es-MX") : "—"}</p>
+                  <p>{credito.fecha_siguiente_pago ? formatDate(credito.fecha_siguiente_pago) : "—"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Plazo</p>

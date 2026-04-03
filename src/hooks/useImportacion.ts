@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { addWeeks, addMonths } from "date-fns"
+import { addWeeks, addMonths, format } from "date-fns"
+import { parseLocalDate } from "@/lib/utils"
 import { convertClienteDateToISO } from "@/lib/validations/import-clientes.schema"
 import { convertCreditoDateToISO } from "@/lib/validations/import-creditos.schema"
 
@@ -137,17 +138,18 @@ export function useImportClientes() {
 }
 
 function calcularSiguientePago(ultimaFecha: string, periodicidad: string): string {
-  const date = new Date(ultimaFecha)
+  const date = parseLocalDate(ultimaFecha)
+  let result: Date
   switch (periodicidad) {
     case "semanal":
-      return addWeeks(date, 1).toISOString().split("T")[0]
+      result = addWeeks(date, 1); break
     case "quincenal":
-      return addWeeks(date, 2).toISOString().split("T")[0]
+      result = addWeeks(date, 2); break
     case "mensual":
-      return addMonths(date, 1).toISOString().split("T")[0]
     default:
-      return addMonths(date, 1).toISOString().split("T")[0]
+      result = addMonths(date, 1); break
   }
+  return format(result, "yyyy-MM-dd")
 }
 
 export function useImportCreditos() {

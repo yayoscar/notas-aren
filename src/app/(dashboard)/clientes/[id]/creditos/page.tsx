@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 function estadoBadge(estado: string) {
   const variant = estado === "activa" ? "default" : estado === "liquidada" ? "secondary" : "destructive"
@@ -67,7 +67,7 @@ export default function CreditosClientePage() {
                         <div className="flex items-center justify-between">
                           {estadoBadge(l.estado)}
                           <span className="text-xs text-muted-foreground">
-                            {new Date(l.fecha_inicio).toLocaleDateString("es-MX")}
+                            {formatDate(l.fecha_inicio)}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mt-2 text-center">
@@ -118,7 +118,7 @@ export default function CreditosClientePage() {
                               {estadoBadge(l.estado)}
                             </Link>
                           </TableCell>
-                          <TableCell>{new Date(l.fecha_inicio).toLocaleDateString("es-MX")}</TableCell>
+                          <TableCell>{formatDate(l.fecha_inicio)}</TableCell>
                           <TableCell className="text-right font-mono tabular-nums">{formatMoney(l.saldo_total)}</TableCell>
                           <TableCell className="text-right font-mono tabular-nums text-green-600">{formatMoney(l.saldo_pagado)}</TableCell>
                           <TableCell className="text-right font-mono tabular-nums text-orange-600">{formatMoney(pendiente)}</TableCell>

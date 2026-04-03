@@ -26,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Settings2, Share2, Download, Printer } from "lucide-react"
 import { pdf } from "@react-pdf/renderer"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useQuery } from "@tanstack/react-query"
 import type { LineaCredito } from "@/lib/supabase/types"
@@ -190,8 +190,8 @@ export default function CreditoDetallePage() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <DetailRow label="Plazo" value={`${linea.meses_credito} ${linea.meses_credito === 1 ? "mes" : "meses"}`} />
             <DetailRow label="Periodicidad" value={linea.periodicidad === "semanal" ? "Semanal" : linea.periodicidad === "quincenal" ? "Quincenal" : "Mensual"} />
-            <DetailRow label="Fecha inicio" value={new Date(linea.fecha_inicio).toLocaleDateString("es-MX")} />
-            <DetailRow label="Sig. pago" value={linea.fecha_siguiente_pago ? new Date(linea.fecha_siguiente_pago).toLocaleDateString("es-MX") : null} />
+            <DetailRow label="Fecha inicio" value={formatDate(linea.fecha_inicio)} />
+            <DetailRow label="Sig. pago" value={linea.fecha_siguiente_pago ? formatDate(linea.fecha_siguiente_pago) : null} />
           </div>
         </CardContent>
       </Card>
@@ -303,7 +303,7 @@ export default function CreditoDetallePage() {
                                 {p.tipo_pago === "efectivo" ? "Efectivo" : p.tipo_pago === "transferencia" ? "Transferencia" : p.tipo_pago === "devolucion" ? "Devolución" : "Retiro s/tarjeta"}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
-                                {new Date(p.fecha).toLocaleDateString("es-MX")}
+                                {formatDate(p.fecha)}
                               </span>
                             </div>
                             <div className="flex items-baseline gap-3 mt-1">
@@ -335,7 +335,7 @@ export default function CreditoDetallePage() {
                                         fechaVenta={linea.fecha_inicio}
                                       />
                                     ).toBlob()
-                                    await downloadPDF(blob, `abono-credito-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                                    await downloadPDF(blob, `abono-credito-${p.fecha.split("T")[0]}.pdf`)
                                   } catch { /* silent */ }
                                 }}
                                 title="Imprimir comprobante"
@@ -371,7 +371,7 @@ export default function CreditoDetallePage() {
                             const saldoAnterior = saldoAcum + p.monto
                             return (
                               <TableRow key={p.id}>
-                                <TableCell>{new Date(p.fecha).toLocaleDateString("es-MX")}</TableCell>
+                                <TableCell>{formatDate(p.fecha)}</TableCell>
                                 <TableCell className="text-right font-medium">{formatMoney(p.monto)}</TableCell>
                                 <TableCell>
                                   <Badge variant={p.tipo_pago === "devolucion" ? "secondary" : "outline"}>
@@ -406,7 +406,7 @@ export default function CreditoDetallePage() {
                                             fechaVenta={linea.fecha_inicio}
                                           />
                                         ).toBlob()
-                                        await downloadPDF(blob, `abono-credito-${new Date(p.fecha).toISOString().split("T")[0]}.pdf`)
+                                        await downloadPDF(blob, `abono-credito-${p.fecha.split("T")[0]}.pdf`)
                                       } catch { /* silent */ }
                                     }}
                                     title="Imprimir comprobante"

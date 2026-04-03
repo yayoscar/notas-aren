@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PagoForm } from "@/components/ventas/PagoForm"
 import { toast } from "sonner"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, localToday } from "@/lib/utils"
 import { AbonoTicketPDF } from "@/components/ventas/AbonoTicketPDF"
 import { pdf } from "@react-pdf/renderer"
 import { downloadPDF } from "@/lib/pdf-utils"
@@ -27,9 +27,7 @@ export default function AbonosPage() {
   const [abonoMonto, setAbonoMonto] = useState(0)
   const [abonoTipo, setAbonoTipo] = useState("efectivo")
   const [abonoCuenta, setAbonoCuenta] = useState<string | null>(null)
-  const [abonoFecha, setAbonoFecha] = useState(
-    new Date().toISOString().split("T")[0]
-  )
+  const [abonoFecha, setAbonoFecha] = useState(localToday())
 
   const { data: linea, isLoading: lineaLoading } =
     useLineaCreditoCliente(clienteId)

@@ -9,6 +9,20 @@ export type EntradaWithProveedor = Entrada & {
   proveedores: { nombre: string } | null
 }
 
+export type EntradaDetalleWithProducto = {
+  id: string
+  producto_id: string
+  cantidad: number
+  precio_unitario: number
+  subtotal: number
+  productos: { nombre: string; sku: string | null; precio_venta_contado: number | null; precio_venta_credito: number | null } | null
+}
+
+export type EntradaFullDetail = Entrada & {
+  proveedores: { nombre: string } | null
+  entradas_detalle: EntradaDetalleWithProducto[]
+}
+
 interface EntradaDetalleInput {
   producto_id: string
   cantidad: number
@@ -79,4 +93,24 @@ export function useEntradas() {
   })
 
   return { query, create }
+}
+
+export function useEntrada(id: string) {
+  const supabase = createClient()
+
+  return useQuery<EntradaFullDetail>({
+    queryKey: ["entradas", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("entradas")
+        .select(
+          `*, proveedores(nombre), entradas_detalle(id, producto_id, cantidad, precio_unitario, subtotal, productos(nombre, sku, precio_venta_contado, precio_venta_credito))`
+        )
+        .eq("id", id)
+        .single()
+      if (error) throw error
+      return data as unknown as EntradaFullDetail
+    },
+    enabled: !!id,
+  })
 }

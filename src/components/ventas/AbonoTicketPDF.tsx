@@ -7,7 +7,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 10, fontFamily: "Helvetica" },
@@ -66,7 +66,7 @@ export function AbonoTicketPDF({
         {fechaVenta && (
           <View style={styles.row}>
             <Text style={styles.label}>Fecha de venta:</Text>
-            <Text>{new Date(fechaVenta).toLocaleDateString("es-MX")}</Text>
+            <Text>{formatDate(fechaVenta)}</Text>
           </View>
         )}
         <View style={styles.row}>
@@ -75,7 +75,7 @@ export function AbonoTicketPDF({
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Fecha del abono:</Text>
-          <Text>{new Date(fecha).toLocaleDateString("es-MX")}</Text>
+          <Text>{formatDate(fecha)}</Text>
         </View>
         {vendedorNombre && (
           <View style={styles.row}>

@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, List } from "lucide-react"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, formatDate } from "@/lib/utils"
 
 type Vista = "inicio" | "listado"
 
@@ -229,7 +229,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                       </div>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs text-muted-foreground">{v.folio}</span>
-                        <span className="text-xs text-muted-foreground">{new Date(v.fecha).toLocaleDateString("es-MX")}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(v.fecha)}</span>
                       </div>
                     </div>
                   </Link>
@@ -276,7 +276,7 @@ function VentasListado({ onBack }: { onBack: () => void }) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(v.fecha).toLocaleDateString("es-MX")}
+                          {formatDate(v.fecha)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatMoney(v.total)}

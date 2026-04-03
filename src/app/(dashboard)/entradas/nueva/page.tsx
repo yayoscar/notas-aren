@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash2, Search } from "lucide-react"
+import { localToday } from "@/lib/utils"
 import { formatMoney } from "@/lib/utils"
 
 interface DetalleRow {
@@ -61,7 +62,7 @@ export default function NuevaEntradaPage() {
     resolver: zodResolver(entradaSchema.omit({ detalles: true })),
     defaultValues: {
       proveedor_id: "",
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: localToday(),
       fecha_factura: "",
       numero_factura: "",
       notas: "",
