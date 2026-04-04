@@ -32,7 +32,7 @@ import {
 import type { CreditoCobranza, RangoTipo } from "@/hooks/useCobranza"
 import { useVendedores } from "@/hooks/useVendedores"
 import { useConfigValue } from "@/hooks/useConfiguracion"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, cn } from "@/lib/utils"
 import { pdf } from "@react-pdf/renderer"
 import { downloadPDF, sharePDF } from "@/lib/pdf-utils"
 import { Download, Share2, Wallet, MessageCircle } from "lucide-react"
@@ -62,6 +62,7 @@ export default function SeguimientoCobranzaPage() {
   const [customFin, setCustomFin] = useState("")
   const [vendedorFilter, setVendedorFilter] = useState("todos")
   const [abonoCredito, setAbonoCredito] = useState<CreditoCobranza | null>(null)
+  const [estadoFilter, setEstadoFilter] = useState<"al_dia" | "pendientes" | null>(null)
 
   const rangoPredefinido = calcularRangoPredefinido(rangoTipo)
   const fechaInicio = rangoTipo === "personalizado" ? customInicio : rangoPredefinido.inicio
@@ -75,13 +76,28 @@ export default function SeguimientoCobranzaPage() {
 
   const filtered = useMemo(() => {
     if (!creditos) return []
+    let list = creditos
+    if (vendedorFilter !== "todos") {
+      list = list.filter((c) => c.vendedor_id === vendedorFilter)
+    }
+    if (estadoFilter === "al_dia") {
+      list = list.filter((c) => c.estado_periodo === "al_dia")
+    } else if (estadoFilter === "pendientes") {
+      list = list.filter((c) => c.estado_periodo !== "al_dia")
+    }
+    return list
+  }, [creditos, vendedorFilter, estadoFilter])
+
+  // Counts use vendedor-filtered data (before estado filter) so cards always show totals
+  const vendedorFiltered = useMemo(() => {
+    if (!creditos) return []
     if (vendedorFilter === "todos") return creditos
     return creditos.filter((c) => c.vendedor_id === vendedorFilter)
   }, [creditos, vendedorFilter])
 
-  const totalPendiente = filtered.reduce((s, c) => s + c.saldo_pendiente, 0)
-  const alDiaCount = filtered.filter((c) => c.estado_periodo === "al_dia").length
-  const pendienteCount = filtered.filter((c) => c.estado_periodo !== "al_dia").length
+  const totalPendiente = vendedorFiltered.reduce((s, c) => s + c.saldo_pendiente, 0)
+  const alDiaCount = vendedorFiltered.filter((c) => c.estado_periodo === "al_dia").length
+  const pendienteCount = vendedorFiltered.filter((c) => c.estado_periodo !== "al_dia").length
 
   function buildWhatsAppUrl(c: CreditoCobranza): string {
     const tel = limpiarTelefono(c.clientes?.telefono ?? null)
@@ -198,21 +214,21 @@ export default function SeguimientoCobranzaPage() {
         </CardContent>
       </Card>
 
-      {/* Summary */}
+      {/* Summary — Al día / Pendientes cards are clickable filters */}
       <div className="grid grid-cols-3 gap-3">
-        <Card>
+        <Card onClick={() => setEstadoFilter(null)} className={cn("cursor-pointer transition-all", estadoFilter === null && "ring-2 ring-orange-600 bg-orange-50")}>
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">Total pendiente</p>
             <p className="text-lg font-bold text-orange-600">{formatMoney(totalPendiente)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card onClick={() => setEstadoFilter((prev) => prev === "al_dia" ? null : "al_dia")} className={cn("cursor-pointer transition-all", estadoFilter === "al_dia" && "ring-2 ring-green-600 bg-green-50")}>
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">Al día</p>
             <p className="text-lg font-bold text-green-600">{alDiaCount}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card onClick={() => setEstadoFilter((prev) => prev === "pendientes" ? null : "pendientes")} className={cn("cursor-pointer transition-all", estadoFilter === "pendientes" && "ring-2 ring-red-600 bg-red-50")}>
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">Pendientes</p>
             <p className="text-lg font-bold text-red-600">{pendienteCount}</p>

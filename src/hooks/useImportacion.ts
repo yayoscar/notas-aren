@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { addWeeks, addMonths, format } from "date-fns"
-import { parseLocalDate } from "@/lib/utils"
+import { parseLocalDate, localDateToISO } from "@/lib/utils"
 import { convertClienteDateToISO } from "@/lib/validations/import-clientes.schema"
 import { convertCreditoDateToISO } from "@/lib/validations/import-creditos.schema"
 
@@ -114,7 +114,7 @@ export function useImportClientes() {
         toInsert.push({
           nombre: row.nombre,
           telefono: row.telefono,
-          fecha_nacimiento: row.fecha_nacimiento ? convertClienteDateToISO(row.fecha_nacimiento) : null,
+          fecha_nacimiento: row.fecha_nacimiento ? localDateToISO(convertClienteDateToISO(row.fecha_nacimiento)!) : null,
           ciudad_id: ciudadId,
           direccion: "",
           referencia_ubicacion: "",
@@ -216,16 +216,48 @@ export function useImportCreditos() {
           saldo_pagado: row.monto_saldado,
           meses_credito: row.numero_meses,
           periodicidad: row.periodicidad,
-          fecha_inicio: fechaInicio,
-          fecha_siguiente_pago: siguientePago,
+          fecha_inicio: localDateToISO(fechaInicio),
+          fecha_siguiente_pago: localDateToISO(siguientePago),
           estado: row.monto_saldado >= row.credito_total ? "liquidada" : "activa",
         })
       })
 
       if (toInsert.length > 0) {
-        const { error } = await supabase.from("lineas_credito").insert(toInsert)
+        const { data: insertedLineas, error } = await supabase
+          .from("lineas_credito")
+          .insert(toInsert)
+          .select("id, cliente_id")
         if (error) throw error
         result.inserted = toInsert.length
+
+        // Create pago records so cobranza query can determine estado_periodo
+        if (insertedLineas && insertedLineas.length > 0) {
+          // Build a map from (cliente_id) to original row data for pago info
+          const rowByCliente = new Map(
+            rows
+              .filter((r) => clienteMap.has(r.telefono_cliente))
+              .map((r) => [clienteMap.get(r.telefono_cliente)!, r])
+          )
+
+          const pagosToInsert = insertedLineas
+            .map((linea) => {
+              const row = rowByCliente.get(linea.cliente_id)
+              if (!row || row.monto_saldado <= 0) return null
+              return {
+                linea_credito_id: linea.id,
+                monto: row.monto_ultimo_pago,
+                fecha: localDateToISO(convertCreditoDateToISO(row.ultima_fecha_pago)),
+                tipo_pago: "efectivo",
+                vendedor_id: vendedorId,
+                cliente_id: linea.cliente_id,
+              }
+            })
+            .filter((p): p is NonNullable<typeof p> => p !== null)
+
+          if (pagosToInsert.length > 0) {
+            await supabase.from("pagos").insert(pagosToInsert)
+          }
+        }
       }
 
       return result
@@ -233,6 +265,8 @@ export function useImportCreditos() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["lineas_credito_activas"] })
       queryClient.invalidateQueries({ queryKey: ["clientes"] })
+      queryClient.invalidateQueries({ queryKey: ["cobranza_v2"] })
+      queryClient.invalidateQueries({ queryKey: ["pagos"] })
       toast.success(`${data.inserted} créditos importados`)
     },
     onError: () => toast.error("Error al importar créditos"),
