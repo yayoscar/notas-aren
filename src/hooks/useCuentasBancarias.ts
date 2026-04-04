@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { checkReferences } from "@/lib/catalogo-references"
 import type { CuentaBancaria } from "@/lib/supabase/types"
 import { toast } from "sonner"
 
@@ -61,5 +62,19 @@ export function useCuentasBancarias() {
     onError: () => toast.error("Error al actualizar cuenta bancaria"),
   })
 
-  return { query, activas, create, update }
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { canDelete, usageMessage } = await checkReferences(supabase, "cat_cuenta_bancaria", id)
+      if (!canDelete) throw new Error(usageMessage)
+      const { error } = await supabase.from("cat_cuenta_bancaria").delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cuentas_bancarias"] })
+      toast.success("Cuenta bancaria eliminada")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  return { query, activas, create, update, remove }
 }

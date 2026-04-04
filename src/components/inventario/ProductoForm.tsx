@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { productoSchema, type ProductoFormValues } from "@/lib/validations/producto.schema"
@@ -11,12 +11,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
 import type { Producto } from "@/lib/supabase/types"
+
+interface SetItem {
+  descripcion: string
+  cantidad: number
+}
 
 interface Props {
   producto?: Producto | null
   onSubmit: (values: ProductoFormValues) => void
   isPending: boolean
+  initialSetItems?: SetItem[]
 }
 
 function SelectField({
@@ -52,7 +59,7 @@ function SelectField({
   )
 }
 
-export function ProductoForm({ producto, onSubmit, isPending }: Props) {
+export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }: Props) {
   const generos = useCatalogo("cat_genero")
   const tamanos = useCatalogo("cat_tamano")
   const presentaciones = useCatalogo("cat_presentacion")
@@ -72,10 +79,15 @@ export function ProductoForm({ producto, onSubmit, isPending }: Props) {
       .slice(0, 10)
   }, [marcasQuery.data, searchMarca])
 
+  const [setItems, setSetItems] = useState<SetItem[]>(
+    initialSetItems?.length ? initialSetItems : []
+  )
+
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ProductoFormValues>({
     resolver: zodResolver(productoSchema),
@@ -91,11 +103,48 @@ export function ProductoForm({ producto, onSubmit, isPending }: Props) {
       proveedor_id: producto?.proveedor_id ?? "",
       stock_minimo: producto?.stock_minimo ?? 5,
       imagen_url: producto?.imagen_url ?? "",
+      set_items: [],
     },
   })
 
+  const presentacionId = watch("presentacion_id")
+  const esSet = useMemo(() => {
+    if (!presentacionId || !presentaciones.query.data) return false
+    const pres = presentaciones.query.data.find((p) => p.id === presentacionId)
+    return pres?.nombre?.toLowerCase().trim() === "set"
+  }, [presentacionId, presentaciones.query.data])
+
+  useEffect(() => {
+    if (esSet && setItems.length === 0) {
+      setSetItems([{ descripcion: "", cantidad: 1 }])
+    }
+    if (!esSet) {
+      setSetItems([])
+    }
+  }, [esSet])
+
+  // Sync initialSetItems when they load (editing existing product)
+  useEffect(() => {
+    if (initialSetItems?.length && setItems.length === 0) {
+      setSetItems(initialSetItems)
+    }
+  }, [initialSetItems])
+
+  const handleFormSubmit = (values: ProductoFormValues) => {
+    if (esSet) {
+      const validItems = setItems.filter((item) => item.descripcion.trim() !== "")
+      if (validItems.length === 0) {
+        toast.error("Agrega al menos un artículo al set")
+        return
+      }
+      onSubmit({ ...values, set_items: validItems })
+    } else {
+      onSubmit({ ...values, set_items: [] })
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Información básica</CardTitle>
@@ -198,6 +247,63 @@ export function ProductoForm({ producto, onSubmit, isPending }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {esSet && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Artículos del Set</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {setItems.map((item, idx) => (
+              <div key={idx} className="flex items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  {idx === 0 && <Label>Descripción</Label>}
+                  <Input
+                    placeholder="Ej: Perfume 100ml Floral"
+                    value={item.descripcion}
+                    onChange={(e) => {
+                      const updated = [...setItems]
+                      updated[idx] = { ...updated[idx], descripcion: e.target.value }
+                      setSetItems(updated)
+                    }}
+                  />
+                </div>
+                <div className="w-24 space-y-2">
+                  {idx === 0 && <Label>Cantidad</Label>}
+                  <Input
+                    type="number"
+                    min={1}
+                    value={item.cantidad}
+                    onChange={(e) => {
+                      const updated = [...setItems]
+                      updated[idx] = { ...updated[idx], cantidad: Number(e.target.value) || 1 }
+                      setSetItems(updated)
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0"
+                  disabled={setItems.length <= 1}
+                  onClick={() => setSetItems(setItems.filter((_, i) => i !== idx))}
+                >
+                  <span className="text-destructive text-lg">&times;</span>
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSetItems([...setItems, { descripcion: "", cantidad: 1 }])}
+            >
+              + Agregar artículo
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

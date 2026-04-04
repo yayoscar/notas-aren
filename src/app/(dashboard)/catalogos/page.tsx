@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Check, X, Pencil } from "lucide-react"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
+import { Plus, Check, X, Pencil, Trash2 } from "lucide-react"
 
 type CatalogoTable =
   | "cat_genero"
@@ -31,11 +32,12 @@ const catalogos: { key: CatalogoTable; label: string; fields: string[] }[] = [
 ]
 
 function CatalogoTab({ table, fields }: { table: CatalogoTable; fields: string[] }) {
-  const { query, create, update } = useCatalogo(table)
+  const { query, create, update, remove } = useCatalogo(table)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [newValues, setNewValues] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   function startEdit(item: Record<string, unknown>) {
     setEditingId(item.id as string)
@@ -163,9 +165,20 @@ function CatalogoTab({ table, fields }: { table: CatalogoTable; fields: string[]
                     {item.activo ? "Activo" : "Inactivo"}
                   </Badge>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    disabled={remove.isPending}
+                    onClick={() => setDeleteId(item.id as string)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -250,9 +263,20 @@ function CatalogoTab({ table, fields }: { table: CatalogoTable; fields: string[]
                       </Button>
                     </div>
                   ) : (
-                    <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => startEdit(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={remove.isPending}
+                        onClick={() => setDeleteId(item.id as string)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
@@ -260,18 +284,30 @@ function CatalogoTab({ table, fields }: { table: CatalogoTable; fields: string[]
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        onConfirm={() => {
+          if (deleteId) remove.mutate(deleteId, { onSettled: () => setDeleteId(null) })
+        }}
+        isPending={remove.isPending}
+        title="¿Eliminar este registro?"
+        description="Si el registro está en uso por otros elementos, no se podrá eliminar."
+      />
     </div>
   )
 }
 
 function CuentasBancariasTab() {
-  const { query, create, update } = useCuentasBancarias()
+  const { query, create, update, remove } = useCuentasBancarias()
   const [adding, setAdding] = useState(false)
   const [newAlias, setNewAlias] = useState("")
   const [newClabe, setNewClabe] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAlias, setEditAlias] = useState("")
   const [editClabe, setEditClabe] = useState("")
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   if (query.isLoading) return <Skeleton className="h-40 w-full" />
 
@@ -329,9 +365,20 @@ function CuentasBancariasTab() {
                     {c.activo ? "Activo" : "Inactivo"}
                   </Badge>
                 </div>
-                <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    disabled={remove.isPending}
+                    onClick={() => setDeleteId(c.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -375,7 +422,18 @@ function CuentasBancariasTab() {
                       <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
                     </div>
                   ) : (
-                    <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}><Pencil className="h-4 w-4" /></Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditAlias(c.alias); setEditClabe(c.clabe) }}><Pencil className="h-4 w-4" /></Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={remove.isPending}
+                        onClick={() => setDeleteId(c.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
@@ -383,16 +441,28 @@ function CuentasBancariasTab() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        onConfirm={() => {
+          if (deleteId) remove.mutate(deleteId, { onSettled: () => setDeleteId(null) })
+        }}
+        isPending={remove.isPending}
+        title="¿Eliminar esta cuenta?"
+        description="Si la cuenta está en uso por pagos o gastos, no se podrá eliminar."
+      />
     </div>
   )
 }
 
 function CategoriasGastoTab() {
-  const { query, create, update } = useCategoriasGasto()
+  const { query, create, update, remove } = useCategoriasGasto()
   const [adding, setAdding] = useState(false)
   const [newNombre, setNewNombre] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editNombre, setEditNombre] = useState("")
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   if (query.isLoading) return <Skeleton className="h-40 w-full" />
 
@@ -441,9 +511,20 @@ function CategoriasGastoTab() {
                     {c.activo ? "Activo" : "Inactivo"}
                   </Badge>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    disabled={remove.isPending}
+                    onClick={() => setDeleteId(c.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -484,7 +565,18 @@ function CategoriasGastoTab() {
                       <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
                     </div>
                   ) : (
-                    <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}><Pencil className="h-4 w-4" /></Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}><Pencil className="h-4 w-4" /></Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={remove.isPending}
+                        onClick={() => setDeleteId(c.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
@@ -492,6 +584,17 @@ function CategoriasGastoTab() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        onConfirm={() => {
+          if (deleteId) remove.mutate(deleteId, { onSettled: () => setDeleteId(null) })
+        }}
+        isPending={remove.isPending}
+        title="¿Eliminar esta categoría?"
+        description="Si la categoría está en uso por gastos, no se podrá eliminar."
+      />
     </div>
   )
 }

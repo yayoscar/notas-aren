@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { checkProductReferences } from "@/lib/catalogo-references"
 import type { Producto, StockMovimiento, InsertTables, UpdateTables } from "@/lib/supabase/types"
 import { toast } from "sonner"
 
@@ -88,7 +89,21 @@ export function useProductos() {
     onError: () => toast.error("Error al actualizar producto"),
   })
 
-  return { query, create, update }
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { canDelete, usageMessage } = await checkProductReferences(supabase, id)
+      if (!canDelete) throw new Error(usageMessage)
+      const { error } = await supabase.from("productos").delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["productos"] })
+      toast.success("Producto eliminado")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  return { query, create, update, remove }
 }
 
 export function useProducto(id: string) {

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { checkReferences } from "@/lib/catalogo-references"
 import type { CategoriaGasto } from "@/lib/supabase/types"
 import { toast } from "sonner"
 
@@ -61,5 +62,19 @@ export function useCategoriasGasto() {
     onError: () => toast.error("Error al actualizar categoría"),
   })
 
-  return { query, activas, create, update }
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { canDelete, usageMessage } = await checkReferences(supabase, "cat_categoria_gasto", id)
+      if (!canDelete) throw new Error(usageMessage)
+      const { error } = await supabase.from("cat_categoria_gasto").delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categorias_gasto"] })
+      toast.success("Categoría eliminada")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  return { query, activas, create, update, remove }
 }

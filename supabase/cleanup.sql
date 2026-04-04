@@ -8,11 +8,11 @@ BEGIN;
 -- Phase 1: Tablas hijas (romper dependencias circulares primero)
 DELETE FROM cobranza_seguimiento;
 DELETE FROM ventas_historial;
+DELETE FROM pagos;
 DELETE FROM devoluciones_detalle;
 DELETE FROM devoluciones;
 DELETE FROM saldos_favor;
 DELETE FROM ventas_detalle;
-DELETE FROM pagos;
 DELETE FROM entradas_detalle;
 DELETE FROM entradas;
 
@@ -37,14 +37,14 @@ DELETE FROM productos;
 DELETE FROM vendedores WHERE rol != 'admin';
 
 -- Phase 6: Catálogos opcionales (descomentar si quieres limpiarlos también)
--- DELETE FROM proveedores;
--- DELETE FROM cat_cuenta_bancaria;
--- DELETE FROM cat_categoria_gasto;
--- DELETE FROM cat_ciudad;
--- DELETE FROM cat_tipo_perfume;
--- DELETE FROM cat_concentracion;
--- DELETE FROM cat_presentacion;
--- DELETE FROM cat_tamano;
--- DELETE FROM cat_genero;
+DELETE FROM proveedores;
+DELETE FROM cat_cuenta_bancaria;
+DELETE FROM cat_categoria_gasto;
+DELETE FROM cat_ciudad;
+DELETE FROM cat_tipo_perfume;
+DELETE FROM cat_concentracion;
+DELETE FROM cat_presentacion;
+DELETE FROM cat_tamano;
+DELETE FROM cat_genero;
 
 COMMIT;

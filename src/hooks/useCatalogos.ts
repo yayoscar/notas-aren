@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { checkReferences } from "@/lib/catalogo-references"
 import { toast } from "sonner"
 
 type CatalogoTable =
@@ -59,5 +60,19 @@ export function useCatalogo(table: CatalogoTable) {
     onError: () => toast.error("Error al actualizar"),
   })
 
-  return { query, create, update }
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { canDelete, usageMessage } = await checkReferences(supabase, table, id)
+      if (!canDelete) throw new Error(usageMessage)
+      const { error } = await supabase.from(table).delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [table] })
+      toast.success("Registro eliminado")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  return { query, create, update, remove }
 }

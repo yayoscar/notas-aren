@@ -910,6 +910,32 @@ export interface Database {
           updated_at?: string
         }
       }
+      set_detalle: {
+        Row: {
+          id: string
+          producto_id: string
+          descripcion: string
+          cantidad: number
+          orden: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          producto_id: string
+          descripcion: string
+          cantidad?: number
+          orden?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          producto_id?: string
+          descripcion?: string
+          cantidad?: number
+          orden?: number
+          created_at?: string
+        }
+      }
     }
     Enums: {
       tipo_movimiento: TipoMovimiento
@@ -953,3 +979,6 @@ export type SaldoFavor = Tables<"saldos_favor">
 export type CobranzaSeguimiento = Tables<"cobranza_seguimiento">
 export type VentaHistorial = Tables<"ventas_historial">
 export type LineaCredito = Database["public"]["Tables"]["lineas_credito"]["Row"]
+export type SetDetalle = Tables<"set_detalle">
+export type InsertSetDetalle = InsertTables<"set_detalle">
+export type UpdateSetDetalle = UpdateTables<"set_detalle">

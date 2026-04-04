@@ -1,5 +1,10 @@
 import { z } from "zod"
 
+export const setItemSchema = z.object({
+  descripcion: z.string().min(1, "La descripción es requerida"),
+  cantidad: z.number().int().min(1, "Mínimo 1"),
+})
+
 export const productoSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
   marca: z.string().min(1, "La marca es requerida"),
@@ -12,6 +17,8 @@ export const productoSchema = z.object({
   proveedor_id: z.string().nullable().optional(),
   stock_minimo: z.number().int().min(0).nullable().optional(),
   imagen_url: z.string().nullable().optional(),
+  set_items: z.array(setItemSchema).optional(),
 })
 
 export type ProductoFormValues = z.infer<typeof productoSchema>
+export type SetItemValues = z.infer<typeof setItemSchema>

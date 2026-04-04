@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useProducto, useProductos, useStockMovimientos } from "@/hooks/useProductos"
 import { useDerivados } from "@/hooks/useProductosDerivados"
 import { usePreciosHistorico } from "@/hooks/usePreciosHistorico"
+import { useSetDetalle } from "@/hooks/useSetDetalle"
 import { ProductoForm } from "@/components/inventario/ProductoForm"
 import { StockBadge } from "@/components/inventario/StockBadge"
 import { RegistrarParcialDialog } from "@/components/inventario/RegistrarParcialDialog"
@@ -18,7 +19,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatMoney } from "@/lib/utils"
-import { FlaskConical, DollarSign, PackageMinus } from "lucide-react"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
+import { FlaskConical, DollarSign, PackageMinus, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 const TIPO_LABELS: Record<string, string> = {
@@ -48,17 +50,31 @@ export default function ProductoDetailPage() {
   const movimientos = useStockMovimientos(id)
   const preciosHistorico = usePreciosHistorico(id)
   const derivadosQuery = useDerivados(id)
-  const { update } = useProductos()
+  const setDetalleQuery = useSetDetalle(id)
+  const { update, remove } = useProductos()
   const [parcialDialogOpen, setParcialDialogOpen] = useState(false)
   const [precioDialogOpen, setPrecioDialogOpen] = useState(false)
   const [segundaDialogOpen, setSegundaDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   function handleSubmit(values: ProductoFormValues) {
+    const { set_items, ...rest } = values
     const cleaned = Object.fromEntries(
-      Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])
+      Object.entries(rest).map(([k, v]) => [k, v === "" ? null : v])
     )
     update.mutate({ id, ...cleaned } as unknown as Parameters<typeof update.mutate>[0], {
-      onSuccess: () => router.push("/inventario"),
+      onSuccess: () => {
+        if (set_items && set_items.length > 0) {
+          setDetalleQuery.sync.mutate(
+            { productoId: id, items: set_items },
+            { onSettled: () => router.push("/inventario") }
+          )
+        } else {
+          setDetalleQuery.deleteAll.mutate(id, {
+            onSettled: () => router.push("/inventario"),
+          })
+        }
+      },
     })
   }
 
@@ -119,6 +135,18 @@ export default function ProductoDetailPage() {
               Registrar como Segunda
             </Button>
           )}
+          {!esDerivado && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              disabled={remove.isPending}
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -132,6 +160,20 @@ export default function ProductoDetailPage() {
         producto={p}
         open={precioDialogOpen}
         onOpenChange={setPrecioDialogOpen}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          remove.mutate(id, {
+            onSuccess: () => router.push("/inventario"),
+            onSettled: () => setDeleteDialogOpen(false),
+          })
+        }}
+        isPending={remove.isPending}
+        title="¿Eliminar este producto?"
+        description="Si el producto tiene movimientos, ventas, entradas o devoluciones, no se podrá eliminar. Esta acción no se puede deshacer."
       />
 
       {esDerivado && (
@@ -239,6 +281,25 @@ export default function ProductoDetailPage() {
                 </div>
               </div>
 
+              {setDetalleQuery.query.data && setDetalleQuery.query.data.length > 0 && (
+                <div className="mt-6 rounded-md border bg-muted/30 p-4">
+                  <p className="text-sm font-semibold mb-3">Artículos del Set</p>
+                  <div className="space-y-2">
+                    {setDetalleQuery.query.data.map((item, idx) => (
+                      <div key={item.id} className="flex items-center justify-between text-sm">
+                        <span>
+                          <span className="text-muted-foreground mr-2">{idx + 1}.</span>
+                          {item.descripcion}
+                        </span>
+                        <span className="font-mono text-muted-foreground">
+                          x{item.cantidad.toLocaleString("es-MX")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Stock actual</p>
@@ -269,6 +330,10 @@ export default function ProductoDetailPage() {
               producto={p}
               onSubmit={handleSubmit}
               isPending={update.isPending}
+              initialSetItems={setDetalleQuery.query.data?.map((d) => ({
+                descripcion: d.descripcion,
+                cantidad: d.cantidad,
+              }))}
             />
           </TabsContent>
         )}
