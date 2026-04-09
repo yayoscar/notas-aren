@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Save, Upload } from "lucide-react"
+import { Save, Upload, Database } from "lucide-react"
 import Link from "next/link"
 
 export default function ConfiguracionPage() {
@@ -136,6 +136,22 @@ export default function ConfiguracionPage() {
             <Button variant="outline">
               <Upload className="mr-2 h-4 w-4" />
               Ir a Importación
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Respaldo y Restauración</CardTitle>
+          <CardDescription>
+            Genera un respaldo completo de la base de datos o restaura desde un archivo ZIP previamente descargado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/configuracion/respaldo">
+            <Button variant="outline">
+              <Database className="mr-2 h-4 w-4" />
+              Ir a Respaldo
             </Button>
           </Link>
         </CardContent>
