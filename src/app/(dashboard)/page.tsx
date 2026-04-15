@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Package, AlertTriangle, ArrowDownToLine, DollarSign, CreditCard, Landmark } from "lucide-react"
+import { Package, Layers, AlertTriangle, ArrowDownToLine, DollarSign, CreditCard, Landmark } from "lucide-react"
+import { CumpleanosWidget } from "@/components/dashboard/CumpleanosWidget"
 
 export default function DashboardPage() {
   const supabase = createClient()
@@ -32,8 +33,11 @@ export default function DashboardPage() {
         0
       )
 
+      const unidadesEnStock = productos.reduce((sum, p) => sum + p.stock_actual, 0)
+
       return {
-        totalProductos: productosRes.count ?? 0,
+        variedadPerfumes: productosRes.count ?? 0,
+        unidadesEnStock,
         stockBajo: stockBajoRes.count ?? 0,
         totalEntradas: entradasRes.count ?? 0,
         valorInventario,
@@ -45,10 +49,17 @@ export default function DashboardPage() {
 
   const cards = [
     {
+      title: "Variedad de perfumes",
+      value: stats.data?.variedadPerfumes ?? 0,
+      icon: Layers,
+      format: (v: number) => v.toLocaleString("es-MX"),
+      color: "text-brand-gold",
+    },
+    {
       title: "Total productos",
-      value: stats.data?.totalProductos ?? 0,
+      value: stats.data?.unidadesEnStock ?? 0,
       icon: Package,
-      format: (v: number) => v.toString(),
+      format: (v: number) => v.toLocaleString("es-MX"),
       color: "text-brand-gold",
     },
     {
@@ -120,6 +131,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+        <CumpleanosWidget />
       </div>
     </div>
   )

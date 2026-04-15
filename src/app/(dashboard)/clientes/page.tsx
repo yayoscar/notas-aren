@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Cake } from "lucide-react"
 
 export default function ClientesPage() {
   const { query } = useClientes()
@@ -31,12 +31,20 @@ export default function ClientesPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Clientes</h1>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/clientes/nuevo">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo cliente
-          </Link>
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/clientes/cumpleanos">
+              <Cake className="mr-2 h-4 w-4" />
+              Cumpleaños
+            </Link>
+          </Button>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/clientes/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo cliente
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

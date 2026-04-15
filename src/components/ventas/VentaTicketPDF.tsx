@@ -44,6 +44,11 @@ interface DetalleItem {
   marca?: string
   genero?: string
   sku?: string | null
+  descuento?: {
+    tipo: string
+    porcentaje: number
+    precio_original: number
+  } | null
 }
 
 interface PagoItem {
@@ -158,6 +163,12 @@ export function VentaTicketPDF({
                   ]
                     .filter(Boolean)
                     .join(" · ")}
+                </Text>
+              )}
+              {d.descuento && (
+                <Text style={styles.productMeta}>
+                  Descuento {d.descuento.tipo} -{d.descuento.porcentaje}% (-
+                  {formatMoney(d.descuento.precio_original - d.precio_unitario)})
                 </Text>
               )}
             </View>

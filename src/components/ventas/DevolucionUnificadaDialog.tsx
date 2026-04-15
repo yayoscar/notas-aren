@@ -59,6 +59,31 @@ interface ProductoDevuelto {
   seleccionado: boolean
   estado_compra: string
   porcentaje_compra: number | null
+  // Info del descuento original aplicado en la venta (si existió).
+  // `precio_original` arriba ya es el precio efectivo cobrado (con descuento aplicado),
+  // así que el reembolso sale correcto; estos campos son para mostrar en UI.
+  descuento_aplicado: {
+    tipo: string
+    porcentaje: number
+    precio_sin_descuento: number
+  } | null
+}
+
+function readDescuento(raw: unknown): { tipo: string; porcentaje: number; precio_sin_descuento: number } | null {
+  if (!raw) return null
+  const row = Array.isArray(raw) ? raw[0] : raw
+  if (!row) return null
+  const r = row as {
+    porcentaje_aplicado?: number
+    precio_original?: number
+    cat_tipo_descuento?: { nombre?: string } | null
+  }
+  if (r.porcentaje_aplicado == null || r.precio_original == null) return null
+  return {
+    tipo: r.cat_tipo_descuento?.nombre ?? "Descuento",
+    porcentaje: r.porcentaje_aplicado,
+    precio_sin_descuento: r.precio_original,
+  }
 }
 
 type Paso = 1 | 2 | 3
@@ -115,6 +140,9 @@ export function DevolucionUnificadaDialog({
         const pctCompra = precioRef && precioRef > 0 && estadoProd !== "nuevo"
           ? Math.round((d.precio_unitario / precioRef) * 100)
           : null
+        const descuentoAplicado = readDescuento(
+          (d as unknown as { ventas_detalle_descuento?: unknown }).ventas_detalle_descuento
+        )
         resultado.push({
           producto_id: d.producto_id,
           nombre: d.productos?.nombre ?? "—",
@@ -127,6 +155,7 @@ export function DevolucionUnificadaDialog({
           seleccionado: false,
           estado_compra: estadoProd,
           porcentaje_compra: pctCompra,
+          descuento_aplicado: descuentoAplicado,
         })
       }
       return resultado
@@ -391,6 +420,9 @@ export function DevolucionUnificadaDialog({
         const pctCompra = precioRef && precioRef > 0 && estadoProd !== "nuevo"
           ? Math.round((d.precio_unitario / precioRef) * 100)
           : null
+        const descuentoAplicado = readDescuento(
+          (d as unknown as { ventas_detalle_descuento?: unknown }).ventas_detalle_descuento
+        )
         return {
           producto_id: d.producto_id,
           nombre: d.productos?.nombre ?? "—",
@@ -403,6 +435,7 @@ export function DevolucionUnificadaDialog({
           seleccionado: false,
           estado_compra: estadoProd,
           porcentaje_compra: pctCompra,
+          descuento_aplicado: descuentoAplicado,
         }
       })
     )
@@ -553,8 +586,18 @@ export function DevolucionUnificadaDialog({
                                 {p.porcentaje_compra !== null ? ` ${p.porcentaje_compra}%` : ""}
                               </Badge>
                             )}
+                            {p.descuento_aplicado && (
+                              <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0 align-middle border-green-300 text-green-700 bg-green-50">
+                                {p.descuento_aplicado.tipo} -{p.descuento_aplicado.porcentaje}%
+                              </Badge>
+                            )}
                           </span>
                           <span className="text-xs text-muted-foreground">
+                            {p.descuento_aplicado && (
+                              <span className="line-through mr-1">
+                                {formatMoney(p.descuento_aplicado.precio_sin_descuento)}
+                              </span>
+                            )}
                             {formatMoney(p.precio_original)} c/u
                           </span>
                         </div>

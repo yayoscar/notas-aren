@@ -7,6 +7,7 @@ import { productoSchema, type ProductoFormValues } from "@/lib/validations/produ
 import { useCatalogo } from "@/hooks/useCatalogos"
 import { useProveedores } from "@/hooks/useProveedores"
 import { useMarcas } from "@/hooks/useMarcas"
+import { useNombresProducto } from "@/hooks/useNombresProducto"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,6 +79,20 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
       .filter((m) => m.toLowerCase().includes(s))
       .slice(0, 10)
   }, [marcasQuery.data, searchMarca])
+
+  // Nombre suggestions, scoped to the currently-selected marca.
+  const [searchNombre, setSearchNombre] = useState(producto?.nombre ?? "")
+  const [showNombres, setShowNombres] = useState(false)
+  const nombresQuery = useNombresProducto(searchMarca)
+
+  const filteredNombres = useMemo(() => {
+    if (!nombresQuery.data) return []
+    if (!searchNombre) return nombresQuery.data.slice(0, 10)
+    const s = searchNombre.toLowerCase()
+    return nombresQuery.data
+      .filter((n) => n.toLowerCase().includes(s))
+      .slice(0, 10)
+  }, [nombresQuery.data, searchNombre])
 
   const [setItems, setSetItems] = useState<SetItem[]>(
     initialSetItems?.length ? initialSetItems : []
@@ -151,11 +166,7 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre *</Label>
-              <Input id="nombre" {...register("nombre")} placeholder="Nombre del perfume" />
-              {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
-            </div>
+            {/* 1. Marca (first — drives nombre suggestions) */}
             <div className="space-y-2 relative">
               <Label htmlFor="marca">Marca *</Label>
               <Input
@@ -193,6 +204,50 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
               )}
               {errors.marca && <p className="text-sm text-destructive">{errors.marca.message}</p>}
             </div>
+
+            {/* 2. Nombre (filtered by marca) */}
+            <div className="space-y-2 relative">
+              <Label htmlFor="nombre">Nombre *</Label>
+              <Input
+                id="nombre"
+                placeholder={
+                  searchMarca ? "Nombre del perfume" : "Selecciona una marca primero"
+                }
+                value={searchNombre}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSearchNombre(val)
+                  setValue("nombre", val)
+                  setShowNombres(true)
+                }}
+                onFocus={() => setShowNombres(true)}
+                onBlur={() => setTimeout(() => setShowNombres(false), 150)}
+                autoComplete="off"
+                disabled={!searchMarca}
+              />
+              {showNombres && filteredNombres.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-lg max-h-60 overflow-y-auto">
+                  {filteredNombres.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary transition-colors border-b last:border-b-0"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setValue("nombre", n)
+                        setSearchNombre(n)
+                        setShowNombres(false)
+                      }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
+            </div>
+
+            {/* 3. SKU */}
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
               <Input id="sku" {...register("sku")} placeholder="SKU-001" />

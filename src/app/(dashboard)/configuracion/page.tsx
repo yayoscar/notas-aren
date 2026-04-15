@@ -15,10 +15,14 @@ export default function ConfiguracionPage() {
   const { isAdmin, isLoading: isLoadingVendedor } = useVendedorActual()
   const { data: mensajeActual, isLoading: isLoadingConfig } = useConfigValue("recordatorio_whatsapp")
   const { data: diasLimiteActual, isLoading: isLoadingDias } = useConfigValue("dias_limite_devolucion")
+  const { data: felicitacionActual, isLoading: isLoadingFelicitacion } = useConfigValue("felicitacion_cumple_whatsapp")
+  const { data: invitacionActual, isLoading: isLoadingInvitacion } = useConfigValue("invitacion_cumple_whatsapp")
   const updateConfig = useUpdateConfigValue()
 
   const [mensaje, setMensaje] = useState("")
   const [diasLimite, setDiasLimite] = useState("7")
+  const [felicitacion, setFelicitacion] = useState("")
+  const [invitacion, setInvitacion] = useState("")
 
   useEffect(() => {
     if (mensajeActual) setMensaje(mensajeActual)
@@ -27,6 +31,14 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     if (diasLimiteActual) setDiasLimite(diasLimiteActual)
   }, [diasLimiteActual])
+
+  useEffect(() => {
+    if (felicitacionActual) setFelicitacion(felicitacionActual)
+  }, [felicitacionActual])
+
+  useEffect(() => {
+    if (invitacionActual) setInvitacion(invitacionActual)
+  }, [invitacionActual])
 
   if (isLoadingVendedor) {
     return (
@@ -88,6 +100,76 @@ export default function ConfiguracionPage() {
           )}
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Mensaje de felicitación de cumpleaños</CardTitle>
+          <CardDescription>
+            Este mensaje se propone cuando felicitas a un cliente cuyo cumpleaños es hoy.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingFelicitacion ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <>
+              <Textarea
+                value={felicitacion}
+                onChange={(e) => setFelicitacion(e.target.value)}
+                rows={5}
+                placeholder="Escribe el mensaje de felicitación..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Variable disponible: <code className="bg-muted px-1 rounded">{"{nombre}"}</code>
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => updateConfig.mutate({ key: "felicitacion_cumple_whatsapp", value: felicitacion })}
+                  disabled={updateConfig.isPending || felicitacion === (felicitacionActual ?? "")}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateConfig.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mensaje de invitación por cumpleaños</CardTitle>
+          <CardDescription>
+            Este mensaje se propone para invitar a clientes con cumpleaños próximo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingInvitacion ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <>
+              <Textarea
+                value={invitacion}
+                onChange={(e) => setInvitacion(e.target.value)}
+                rows={5}
+                placeholder="Escribe el mensaje de invitación..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Variable disponible: <code className="bg-muted px-1 rounded">{"{nombre}"}</code>
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => updateConfig.mutate({ key: "invitacion_cumple_whatsapp", value: invitacion })}
+                  disabled={updateConfig.isPending || invitacion === (invitacionActual ?? "")}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateConfig.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Devoluciones</CardTitle>

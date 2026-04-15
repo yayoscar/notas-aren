@@ -323,21 +323,52 @@ export default function NuevaEntradaPage() {
                 />
               </div>
               {showSearch && filteredProductos.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-md border bg-background shadow-lg">
-                  {filteredProductos.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-accent"
-                      onClick={() => addProducto(p)}
-                    >
-                      <span>
-                        <span className="font-mono text-muted-foreground">{p.sku}</span>{" "}
-                        {p.nombre}
-                      </span>
-                      <span className="text-muted-foreground">{formatMoney(Number(p.precio_compra))}</span>
-                    </button>
-                  ))}
+                <div className="absolute z-10 mt-1 w-full rounded-md border bg-background shadow-lg max-h-96 overflow-y-auto">
+                  {filteredProductos.map((p) => {
+                    // Cast: useProductos returns ProductoWithRelations but the
+                    // local filteredProductos is typed as Producto[].
+                    const pr = p as unknown as import("@/hooks/useProductos").ProductoWithRelations
+                    const atributos = [
+                      pr.cat_presentacion?.nombre,
+                      pr.cat_genero?.nombre,
+                      pr.cat_tamano?.etiqueta,
+                      pr.cat_concentracion?.nombre,
+                      pr.cat_tipo_perfume?.nombre,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 px-4 py-2.5 text-sm hover:bg-accent border-b last:border-b-0 text-left"
+                        onClick={() => addProducto(p)}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">
+                            {p.nombre}
+                            {p.marca && (
+                              <span className="text-muted-foreground font-normal"> — {p.marca}</span>
+                            )}
+                          </div>
+                          {atributos && (
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">
+                              {atributos}
+                            </div>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {p.sku && (
+                            <div className="font-mono text-xs text-muted-foreground">{p.sku}</div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {formatMoney(Number(p.precio_compra))}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>

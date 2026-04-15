@@ -11,8 +11,16 @@ export type VentaWithRelations = Venta & {
   clientes: { nombre: string; telefono: string } | null
 }
 
+export type VentaDetalleDescuentoJoined = {
+  porcentaje_aplicado: number
+  precio_original: number
+  precio_final: number
+  cat_tipo_descuento: { nombre: string } | null
+}
+
 export type VentaDetalleWithProducto = VentaDetalle & {
   productos: { nombre: string; sku: string; estado_producto: string; precio_venta_contado: number | null; precio_venta_credito: number | null; producto_origen_id: string | null } | null
+  ventas_detalle_descuento: VentaDetalleDescuentoJoined | VentaDetalleDescuentoJoined[] | null
 }
 
 export type PagoWithCuenta = Pago & {
@@ -34,10 +42,17 @@ export type VentaFullDetail = Venta & {
   } | null
 }
 
+interface DescuentoDetalleInput {
+  tipo_descuento_id: string
+  porcentaje: number
+  precio_original: number
+}
+
 interface VentaDetalleInput {
   producto_id: string
   cantidad: number
   precio_unitario: number
+  descuento?: DescuentoDetalleInput | null
 }
 
 interface PagoInput {
@@ -169,10 +184,33 @@ export function useVentas() {
         precio_unitario: d.precio_unitario,
       }))
 
-      const { error: detalleError } = await supabase
+      const { data: insertedDetalles, error: detalleError } = await supabase
         .from("ventas_detalle")
         .insert(detailRows)
+        .select("id")
       if (detalleError) throw detalleError
+
+      // Insertar descuentos por ítem (0..1 por detalle)
+      const descuentoRows = detalles
+        .map((d, i) =>
+          d.descuento
+            ? {
+                venta_detalle_id: (insertedDetalles![i] as { id: string }).id,
+                tipo_descuento_id: d.descuento.tipo_descuento_id,
+                porcentaje_aplicado: d.descuento.porcentaje,
+                precio_original: d.descuento.precio_original,
+                precio_final: d.precio_unitario,
+              }
+            : null
+        )
+        .filter((r): r is NonNullable<typeof r> => r !== null)
+
+      if (descuentoRows.length > 0) {
+        const { error: descError } = await supabase
+          .from("ventas_detalle_descuento")
+          .insert(descuentoRows)
+        if (descError) throw descError
+      }
 
       // Insertar pago de contado
       if (ventaData.tipo_venta === "contado" && pago) {
@@ -242,6 +280,7 @@ export function useVentas() {
       queryClient.invalidateQueries({ queryKey: ["productos"] })
       queryClient.invalidateQueries({ queryKey: ["lineas_credito_activas"] })
       queryClient.invalidateQueries({ queryKey: ["linea_credito_cliente"] })
+      queryClient.invalidateQueries({ queryKey: ["ventas_detalle_descuento"] })
       toast.success("Venta registrada exitosamente")
     },
     onError: () => toast.error("Error al registrar venta"),
@@ -316,7 +355,7 @@ export function useVentas() {
         }
       }
 
-      // Delete old detalles and insert new ones
+      // Delete old detalles (CASCADE clears ventas_detalle_descuento) and insert new ones
       await supabase
         .from("ventas_detalle")
         .delete()
@@ -327,14 +366,36 @@ export function useVentas() {
         0
       )
 
-      await supabase.from("ventas_detalle").insert(
-        input.detalles.map((d) => ({
-          venta_id: input.venta_id,
-          producto_id: d.producto_id,
-          cantidad: d.cantidad,
-          precio_unitario: d.precio_unitario,
-        }))
-      )
+      const { data: newDetalles } = await supabase
+        .from("ventas_detalle")
+        .insert(
+          input.detalles.map((d) => ({
+            venta_id: input.venta_id,
+            producto_id: d.producto_id,
+            cantidad: d.cantidad,
+            precio_unitario: d.precio_unitario,
+          }))
+        )
+        .select("id")
+
+      // Reinsertar descuentos
+      const descuentoRows = input.detalles
+        .map((d, i) =>
+          d.descuento && newDetalles
+            ? {
+                venta_detalle_id: (newDetalles[i] as { id: string }).id,
+                tipo_descuento_id: d.descuento.tipo_descuento_id,
+                porcentaje_aplicado: d.descuento.porcentaje,
+                precio_original: d.descuento.precio_original,
+                precio_final: d.precio_unitario,
+              }
+            : null
+        )
+        .filter((r): r is NonNullable<typeof r> => r !== null)
+
+      if (descuentoRows.length > 0) {
+        await supabase.from("ventas_detalle_descuento").insert(descuentoRows)
+      }
 
       // Update venta total
       await supabase
@@ -380,7 +441,7 @@ export function useVenta(id: string) {
       const { data, error } = await supabase
         .from("ventas")
         .select(
-          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku, estado_producto, precio_venta_contado, precio_venta_credito, producto_origen_id)), pagos(*, cat_cuenta_bancaria(alias, clabe), vendedores(nombre)), lineas_credito(saldo_total, saldo_pagado, meses_credito, periodicidad, fecha_siguiente_pago)`
+          `*, vendedores(nombre), clientes(nombre, telefono), ventas_detalle(*, productos(nombre, sku, estado_producto, precio_venta_contado, precio_venta_credito, producto_origen_id), ventas_detalle_descuento(porcentaje_aplicado, precio_original, precio_final, cat_tipo_descuento(nombre))), pagos(*, cat_cuenta_bancaria(alias, clabe), vendedores(nombre)), lineas_credito(saldo_total, saldo_pagado, meses_credito, periodicidad, fecha_siguiente_pago)`
         )
         .eq("id", id)
         .single()

@@ -1,5 +1,6 @@
 "use client"
 
+import { Fragment } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,16 +16,18 @@ import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
 import { formatMoney } from "@/lib/utils"
 import type { VentaDetalleValues } from "@/lib/validations/venta.schema"
+import { DescuentoFields, type DescuentoValue } from "./DescuentoFields"
 
 interface Props {
   detalles: VentaDetalleValues[]
   tipoVenta: "contado" | "credito" // used for context, reserved for future price validation display
   onUpdate: (index: number, field: string, value: number) => void
   onRemove: (index: number) => void
+  onUpdateDescuento: (index: number, descuento: DescuentoValue | null) => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: Props) {
+export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove, onUpdateDescuento }: Props) {
   const total = detalles.reduce(
     (sum, d) => sum + d.cantidad * d.precio_unitario,
     0
@@ -42,7 +45,8 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
         {detalles.map((d, i) => {
           const subtotal = d.cantidad * d.precio_unitario
           const precioMinimo = d._precio_minimo ?? 0
-          const precioInvalido = d.precio_unitario < precioMinimo
+          const tieneDescuento = !!d.descuento
+          const precioInvalido = !tieneDescuento && d.precio_unitario < precioMinimo
 
           return (
             <div key={`${d.producto_id}-${i}`} className="py-3 border-b last:border-b-0">
@@ -74,11 +78,12 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
                   <Input
                     type="number"
                     step="0.01"
-                    min={precioMinimo}
+                    min={tieneDescuento ? 0 : precioMinimo}
                     value={d.precio_unitario}
                     onChange={(e) =>
                       onUpdate(i, "precio_unitario", Number(e.target.value))
                     }
+                    readOnly={tieneDescuento}
                     className={precioInvalido ? "border-destructive h-9" : "h-9"}
                   />
                   {precioInvalido && (
@@ -104,6 +109,13 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
                     />
                   )}
                 </div>
+              </div>
+              <div className="mt-2">
+                <DescuentoFields
+                  precioOriginal={d.descuento?.precio_original ?? d.precio_unitario}
+                  descuento={d.descuento ?? null}
+                  onChange={(desc) => onUpdateDescuento(i, desc)}
+                />
               </div>
               <p className="text-xs tabular-nums text-muted-foreground mt-1.5">
                 {d.cantidad} &times; {formatMoney(d.precio_unitario)} ={" "}
@@ -147,69 +159,82 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove }: P
             {detalles.map((d, i) => {
               const subtotal = d.cantidad * d.precio_unitario
               const precioMinimo = d._precio_minimo ?? 0
-              const precioInvalido = d.precio_unitario < precioMinimo
+              const tieneDescuento = !!d.descuento
+              const precioInvalido = !tieneDescuento && d.precio_unitario < precioMinimo
 
               return (
-                <TableRow key={`${d.producto_id}-${i}`}>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium">{d._nombre}</p>
-                      {d._estado_producto && d._estado_producto !== "nuevo" && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                          {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Stock: {d._stock_actual}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={precioMinimo}
-                      value={d.precio_unitario}
-                      onChange={(e) =>
-                        onUpdate(i, "precio_unitario", Number(e.target.value))
-                      }
-                      className={precioInvalido ? "border-destructive" : ""}
-                    />
-                    {precioInvalido && (
-                      <p className="text-xs text-destructive mt-1">
-                        Mín: {formatMoney(precioMinimo)}
+                <Fragment key={`${d.producto_id}-${i}`}>
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium">{d._nombre}</p>
+                        {d._estado_producto && d._estado_producto !== "nuevo" && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                            {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Stock: {d._stock_actual}
                       </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {d._estado_producto === "parcial" || d._estado_producto === "segunda" ? (
-                      <p className="text-sm font-mono text-center">1</p>
-                    ) : (
+                    </TableCell>
+                    <TableCell>
                       <Input
                         type="number"
-                        min={1}
-                        max={d._stock_actual}
-                        value={d.cantidad}
+                        step="0.01"
+                        min={tieneDescuento ? 0 : precioMinimo}
+                        value={d.precio_unitario}
                         onChange={(e) =>
-                          onUpdate(i, "cantidad", Number(e.target.value))
+                          onUpdate(i, "precio_unitario", Number(e.target.value))
                         }
+                        readOnly={tieneDescuento}
+                        className={precioInvalido ? "border-destructive" : ""}
                       />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMoney(subtotal)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onRemove(i)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                      {precioInvalido && (
+                        <p className="text-xs text-destructive mt-1">
+                          Mín: {formatMoney(precioMinimo)}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {d._estado_producto === "parcial" || d._estado_producto === "segunda" ? (
+                        <p className="text-sm font-mono text-center">1</p>
+                      ) : (
+                        <Input
+                          type="number"
+                          min={1}
+                          max={d._stock_actual}
+                          value={d.cantidad}
+                          onChange={(e) =>
+                            onUpdate(i, "cantidad", Number(e.target.value))
+                          }
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatMoney(subtotal)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRemove(i)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-1">
+                      <DescuentoFields
+                        precioOriginal={d.descuento?.precio_original ?? d.precio_unitario}
+                        descuento={d.descuento ?? null}
+                        onChange={(desc) => onUpdateDescuento(i, desc)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                </Fragment>
               )
             })}
           </TableBody>

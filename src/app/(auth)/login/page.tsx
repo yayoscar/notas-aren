@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -67,13 +68,14 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-sm px-4">
         {/* Brand mark */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-gold/20 bg-brand-gold/10 backdrop-blur-sm">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="hsl(36, 65%, 50%)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 3h6l1 4H8L9 3Z" />
-              <path d="M8 7c-1 2-2 5-2 9a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4c0-4-1-7-2-9H8Z" />
-              <rect x="10" y="1" width="4" height="3" rx="1" />
-            </svg>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Notas de Aren"
+            width={72}
+            height={107}
+            priority
+            className="mx-auto mb-4 h-24 w-auto"
+          />
           <h1 className="font-display text-3xl font-semibold tracking-tight text-brand-cream">
             Notas de Aren
           </h1>

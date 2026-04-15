@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useCatalogo } from "@/hooks/useCatalogos"
 import { useCuentasBancarias } from "@/hooks/useCuentasBancarias"
 import { useCategoriasGasto } from "@/hooks/useCategoriasGasto"
+import { useTiposDescuento } from "@/hooks/useTiposDescuento"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
-import { Plus, Check, X, Pencil, Trash2 } from "lucide-react"
+import { Plus, Check, X, Pencil, Trash2, RotateCcw } from "lucide-react"
 
 type CatalogoTable =
   | "cat_genero"
@@ -599,6 +600,183 @@ function CategoriasGastoTab() {
   )
 }
 
+function TiposDescuentoTab() {
+  const { query, create, update, remove, reactivate } = useTiposDescuento()
+  const [adding, setAdding] = useState(false)
+  const [newNombre, setNewNombre] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editNombre, setEditNombre] = useState("")
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  if (query.isLoading) return <Skeleton className="h-40 w-full" />
+
+  const items = query.data ?? []
+
+  return (
+    <div>
+      <div className="mb-4 flex justify-end">
+        <Button size="sm" onClick={() => setAdding(true)} disabled={adding}>
+          <Plus className="mr-2 h-4 w-4" /> Agregar
+        </Button>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="space-y-2 md:hidden">
+        {adding && (
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+            <Input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre del tipo" />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewNombre("") }}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={() => { create.mutate({ nombre: newNombre }, { onSuccess: () => { setAdding(false); setNewNombre("") } }) }} disabled={create.isPending || !newNombre.trim()}>
+                <Check className="mr-1 h-4 w-4" /> Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+        {items.length === 0 && !adding && (
+          <p className="text-center text-muted-foreground py-6">Sin registros</p>
+        )}
+        {items.map(c => (
+          <div key={c.id} className="rounded-lg border p-3">
+            {editingId === c.id ? (
+              <div className="space-y-3">
+                <Input value={editNombre} onChange={e => setEditNombre(e.target.value)} placeholder="Nombre del tipo" />
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    <X className="mr-1 h-4 w-4" /> Cancelar
+                  </Button>
+                  <Button size="sm" onClick={() => { update.mutate({ id: c.id, nombre: editNombre }, { onSuccess: () => setEditingId(null) }) }} disabled={update.isPending}>
+                    <Check className="mr-1 h-4 w-4" /> Guardar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{c.nombre}</span>
+                  <Badge variant={c.activo ? "default" : "secondary"} className="text-xs">
+                    {c.activo ? "Activo" : "Inactivo"}
+                  </Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {c.activo ? (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      disabled={remove.isPending}
+                      onClick={() => setDeleteId(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={reactivate.isPending}
+                      onClick={() => reactivate.mutate(c.id)}
+                      title="Reactivar"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {adding && (
+              <TableRow>
+                <TableCell><Input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="Nombre del tipo" /></TableCell>
+                <TableCell />
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => { create.mutate({ nombre: newNombre }, { onSuccess: () => { setAdding(false); setNewNombre("") } }) }} disabled={create.isPending || !newNombre.trim()}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setAdding(false); setNewNombre("") }}><X className="h-4 w-4" /></Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {items.length === 0 && !adding && (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground">Sin registros</TableCell>
+              </TableRow>
+            )}
+            {items.map(c => (
+              <TableRow key={c.id}>
+                <TableCell>{editingId === c.id ? <Input value={editNombre} onChange={e => setEditNombre(e.target.value)} /> : c.nombre}</TableCell>
+                <TableCell><Badge variant={c.activo ? "default" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge></TableCell>
+                <TableCell>
+                  {editingId === c.id ? (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { update.mutate({ id: c.id, nombre: editNombre }, { onSuccess: () => setEditingId(null) }) }} disabled={update.isPending}><Check className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditingId(c.id); setEditNombre(c.nombre) }}><Pencil className="h-4 w-4" /></Button>
+                      {c.activo ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={remove.isPending}
+                          onClick={() => setDeleteId(c.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={reactivate.isPending}
+                          onClick={() => reactivate.mutate(c.id)}
+                          title="Reactivar"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        onConfirm={() => {
+          if (deleteId) remove.mutate(deleteId, { onSettled: () => setDeleteId(null) })
+        }}
+        isPending={remove.isPending}
+        title="¿Desactivar este tipo de descuento?"
+        description="Los registros históricos se conservarán, pero no aparecerá en nuevas ventas. Podrás reactivarlo después."
+      />
+    </div>
+  )
+}
+
 export default function CatalogosPage() {
   return (
     <div className="space-y-4">
@@ -615,6 +793,7 @@ export default function CatalogosPage() {
                 ))}
                 <TabsTrigger value="cuentas_bancarias">Cuentas Bancarias</TabsTrigger>
                 <TabsTrigger value="categorias_gasto">Cat. Gasto</TabsTrigger>
+                <TabsTrigger value="tipos_descuento">Tipos Descuento</TabsTrigger>
               </TabsList>
             </div>
             {catalogos.map((c) => (
@@ -627,6 +806,9 @@ export default function CatalogosPage() {
             </TabsContent>
             <TabsContent value="categorias_gasto">
               <CategoriasGastoTab />
+            </TabsContent>
+            <TabsContent value="tipos_descuento">
+              <TiposDescuentoTab />
             </TabsContent>
           </Tabs>
         </CardContent>

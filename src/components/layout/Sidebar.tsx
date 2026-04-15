@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -67,13 +68,14 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           className="flex items-center gap-3 group"
           onClick={onClose}
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 3h6l1 4H8L9 3Z" />
-              <path d="M8 7c-1 2-2 5-2 9a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4c0-4-1-7-2-9H8Z" />
-              <rect x="10" y="1" width="4" height="3" rx="1" />
-            </svg>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Notas de Aren"
+            width={28}
+            height={42}
+            priority
+            className="h-10 w-auto"
+          />
           <div className="flex flex-col">
             <span className="font-display text-lg font-semibold leading-tight tracking-tight text-foreground">
               Notas de Aren

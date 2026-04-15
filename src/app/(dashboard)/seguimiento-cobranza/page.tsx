@@ -32,7 +32,7 @@ import {
 import type { CreditoCobranza, RangoTipo } from "@/hooks/useCobranza"
 import { useVendedores } from "@/hooks/useVendedores"
 import { useConfigValue } from "@/hooks/useConfiguracion"
-import { formatMoney, cn } from "@/lib/utils"
+import { formatMoney, cn, limpiarTelefono } from "@/lib/utils"
 import { pdf } from "@react-pdf/renderer"
 import { downloadPDF, sharePDF } from "@/lib/pdf-utils"
 import { Download, Share2, Wallet, MessageCircle } from "lucide-react"
@@ -49,11 +49,6 @@ function estadoBadge(estado: "al_dia" | "atrasado" | "sin_abonos") {
   if (estado === "al_dia") return <Badge variant="default" className="bg-green-600">Al día</Badge>
   if (estado === "atrasado") return <Badge variant="destructive">Atrasado</Badge>
   return <Badge variant="secondary">Sin abonos</Badge>
-}
-
-function limpiarTelefono(tel: string | null): string {
-  if (!tel) return ""
-  return tel.replace(/[\s\-\(\)\+]/g, "").replace(/^52/, "")
 }
 
 export default function SeguimientoCobranzaPage() {

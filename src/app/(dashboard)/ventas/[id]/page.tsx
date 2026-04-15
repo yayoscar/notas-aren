@@ -46,6 +46,19 @@ function DetailRow({
   )
 }
 
+type DescuentoJoin = {
+  porcentaje_aplicado: number
+  precio_original: number
+  precio_final: number
+  cat_tipo_descuento: { nombre: string } | null
+}
+
+function extractDescuento(raw: unknown): DescuentoJoin | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) return (raw[0] as DescuentoJoin) ?? null
+  return raw as DescuentoJoin
+}
+
 export default function VentaDetailPage() {
   const params = useParams()
   const id = params.id as string
@@ -328,11 +341,12 @@ export default function VentaDetailPage() {
                 {(venta.ventas_detalle ?? []).map((d) => {
                   const cantDevuelta = devueltoPorProducto[d.producto_id] ?? 0
                   const totalmenteDevuelto = cantDevuelta >= d.cantidad
+                  const desc = extractDescuento((d as unknown as { ventas_detalle_descuento?: unknown }).ventas_detalle_descuento)
                   return (
                   <div key={d.id} className={`rounded-lg border p-3${totalmenteDevuelto ? " opacity-50" : ""}`}>
-                    <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
                       <p className={`text-sm font-medium${totalmenteDevuelto ? " line-through" : ""}`}>{d.productos?.nombre ?? "—"}</p>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         {cantDevuelta > 0 && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600 bg-orange-50">
                             Devuelto{cantDevuelta < d.cantidad ? ` (${cantDevuelta})` : ""}
@@ -348,11 +362,23 @@ export default function VentaDetailPage() {
                             </Badge>
                           )
                         })()}
+                        {desc && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-300 text-green-700 bg-green-50">
+                            {desc.cat_tipo_descuento?.nombre ?? "Descuento"} -{desc.porcentaje_aplicado}%
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex justify-between text-xs mt-1">
                       <span>Cant: {d.cantidad}</span>
-                      <span>{formatMoney(d.precio_unitario)}</span>
+                      <span>
+                        {desc && (
+                          <span className="line-through text-muted-foreground mr-1">
+                            {formatMoney(desc.precio_original)}
+                          </span>
+                        )}
+                        {formatMoney(d.precio_unitario)}
+                      </span>
                       <span className="font-bold font-mono tabular-nums">{formatMoney(d.subtotal)}</span>
                     </div>
                   </div>
@@ -375,10 +401,11 @@ export default function VentaDetailPage() {
                     {(venta.ventas_detalle ?? []).map((d) => {
                       const cantDevuelta = devueltoPorProducto[d.producto_id] ?? 0
                       const totalmenteDevuelto = cantDevuelta >= d.cantidad
+                      const desc = extractDescuento((d as unknown as { ventas_detalle_descuento?: unknown }).ventas_detalle_descuento)
                       return (
                       <TableRow key={d.id} className={totalmenteDevuelto ? "opacity-50" : ""}>
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className={`font-medium${totalmenteDevuelto ? " line-through" : ""}`}>
                               {d.productos?.nombre ?? "—"}
                             </p>
@@ -397,12 +424,22 @@ export default function VentaDetailPage() {
                                 </Badge>
                               )
                             })()}
+                            {desc && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-300 text-green-700 bg-green-50">
+                                {desc.cat_tipo_descuento?.nombre ?? "Descuento"} -{desc.porcentaje_aplicado}%
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {d.productos?.sku}
                           </p>
                         </TableCell>
                         <TableCell className="text-right">
+                          {desc && (
+                            <span className="line-through text-muted-foreground mr-1">
+                              {formatMoney(desc.precio_original)}
+                            </span>
+                          )}
                           {formatMoney(d.precio_unitario)}
                         </TableCell>
                         <TableCell className="text-right">

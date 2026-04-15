@@ -49,3 +49,13 @@ export function localDateToISO(dateStr: string): string {
 export function formatDate(dateStr: string): string {
   return parseLocalDate(dateStr).toLocaleDateString("es-MX")
 }
+
+/**
+ * Normalize a Mexican phone number for use in `wa.me` URLs.
+ * Strips spaces, dashes, parentheses, plus signs, and a leading country code "52".
+ * Returns empty string if input is null/empty.
+ */
+export function limpiarTelefono(tel: string | null | undefined): string {
+  if (!tel) return ""
+  return tel.replace(/[\s\-()+]/g, "").replace(/^52/, "")
+}

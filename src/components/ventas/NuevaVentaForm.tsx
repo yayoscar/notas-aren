@@ -42,7 +42,9 @@ import { VentaTicketPDF } from "./VentaTicketPDF"
 import { TablaPagosPDF } from "./TablaPagosPDF"
 import { useVentas } from "@/hooks/useVentas"
 import { useClientes } from "@/hooks/useClientes"
+import { useTiposDescuento } from "@/hooks/useTiposDescuento"
 import { useVendedorActual } from "@/hooks/useVendedorActual"
+import type { DescuentoValue } from "./DescuentoFields"
 import { useLineaCreditoCliente, useUltimoPagoLinea } from "@/hooks/useLineaCredito"
 import { sharePDF, downloadPDF } from "@/lib/pdf-utils"
 import { formatMoney, localToday, formatDate } from "@/lib/utils"
@@ -62,7 +64,11 @@ export function NuevaVentaForm() {
   const router = useRouter()
   const { create } = useVentas()
   const { query: clientesQuery } = useClientes()
+  const { query: tiposDescuentoQuery } = useTiposDescuento()
   const { vendedor } = useVendedorActual()
+  const tiposDescuento = tiposDescuentoQuery.data ?? []
+  const resolveTipoNombre = (id: string) =>
+    tiposDescuento.find((t) => t.id === id)?.nombre ?? "Descuento"
 
   const today = localToday()
 
@@ -212,6 +218,25 @@ export function NuevaVentaForm() {
     setDetalles((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
+  const handleUpdateDescuento = useCallback(
+    (index: number, descuento: DescuentoValue | null) => {
+      setDetalles((prev) =>
+        prev.map((d, i) => {
+          if (i !== index) return d
+          if (!descuento) {
+            // Al quitar el descuento, revertir al precio_original si existía, si no conservar el actual.
+            const precioRestaurado = d.descuento?.precio_original ?? d.precio_unitario
+            return { ...d, descuento: null, precio_unitario: precioRestaurado }
+          }
+          const precioFinal =
+            Math.round(descuento.precio_original * (1 - descuento.porcentaje / 100) * 100) / 100
+          return { ...d, descuento, precio_unitario: precioFinal }
+        })
+      )
+    },
+    []
+  )
+
   const handleConfirmParcial = useCallback(() => {
     if (!pendingParcial) return
     const producto = pendingParcial.producto
@@ -275,10 +300,16 @@ export function NuevaVentaForm() {
     if (!fecha) errs.fecha = "La fecha es requerida"
 
     const precioInvalido = detalles.some(
-      (d) => d._precio_minimo && d.precio_unitario < d._precio_minimo
+      (d) => !d.descuento && d._precio_minimo && d.precio_unitario < d._precio_minimo
     )
     if (precioInvalido)
       errs.detalles = "Hay productos con precio menor al mínimo"
+
+    const descuentoIncompleto = detalles.some(
+      (d) => d.descuento && !d.descuento.tipo_descuento_id
+    )
+    if (descuentoIncompleto)
+      errs.detalles = "Selecciona el tipo de descuento en los ítems marcados"
 
     const stockInvalido = detalles.some(
       (d) => d._stock_actual && d.cantidad > d._stock_actual
@@ -326,6 +357,13 @@ export function NuevaVentaForm() {
           producto_id: d.producto_id,
           cantidad: d.cantidad,
           precio_unitario: d.precio_unitario,
+          descuento: d.descuento
+            ? {
+                tipo_descuento_id: d.descuento.tipo_descuento_id,
+                porcentaje: d.descuento.porcentaje,
+                precio_original: d.descuento.precio_original,
+              }
+            : null,
         })),
         ...(tipoVenta === "contado"
           ? {
@@ -379,6 +417,13 @@ export function NuevaVentaForm() {
           marca: d._marca,
           genero: d._genero,
           sku: d._sku,
+          descuento: d.descuento
+            ? {
+                tipo: resolveTipoNombre(d.descuento.tipo_descuento_id),
+                porcentaje: d.descuento.porcentaje,
+                precio_original: d.descuento.precio_original,
+              }
+            : null,
         }))}
         tipoPago={pagoTipo || undefined}
         periodicidad={tipoVenta === "credito" ? periodicidad : undefined}
@@ -414,6 +459,13 @@ export function NuevaVentaForm() {
           marca: d._marca,
           genero: d._genero,
           sku: d._sku,
+          descuento: d.descuento
+            ? {
+                tipo: resolveTipoNombre(d.descuento.tipo_descuento_id),
+                porcentaje: d.descuento.porcentaje,
+                precio_original: d.descuento.precio_original,
+              }
+            : null,
         }))}
         tipoPago={pagoTipo || undefined}
         periodicidad={tipoVenta === "credito" ? periodicidad : undefined}
@@ -542,16 +594,27 @@ export function NuevaVentaForm() {
         <div className="md:hidden divide-y">
           {detalles.map((d) => (
             <div key={d.producto_id} className="py-2 border-b last:border-b-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-sm font-medium">{d._nombre}</span>
                 {d._estado_producto && d._estado_producto !== "nuevo" && (
                   <Badge variant="secondary" className="text-[10px] px-1 py-0">
                     {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
                   </Badge>
                 )}
+                {d.descuento && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0">
+                    {resolveTipoNombre(d.descuento.tipo_descuento_id)} -{d.descuento.porcentaje}%
+                  </Badge>
+                )}
               </div>
               <p className="text-xs tabular-nums text-muted-foreground">
-                {d.cantidad} &times; {formatMoney(d.precio_unitario)} ={" "}
+                {d.cantidad} &times;{" "}
+                {d.descuento && (
+                  <span className="line-through mr-1">
+                    {formatMoney(d.descuento.precio_original)}
+                  </span>
+                )}
+                {formatMoney(d.precio_unitario)} ={" "}
                 <span className="font-medium text-foreground">
                   {formatMoney(d.cantidad * d.precio_unitario)}
                 </span>
@@ -581,8 +644,18 @@ export function NuevaVentaForm() {
                         ({d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`})
                       </span>
                     )}
+                    {d.descuento && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({resolveTipoNombre(d.descuento.tipo_descuento_id)} -{d.descuento.porcentaje}%)
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right text-sm">
+                    {d.descuento && (
+                      <span className="line-through text-muted-foreground mr-1">
+                        {formatMoney(d.descuento.precio_original)}
+                      </span>
+                    )}
                     {formatMoney(d.precio_unitario)}
                   </TableCell>
                   <TableCell className="text-right text-sm">
@@ -770,6 +843,7 @@ export function NuevaVentaForm() {
               tipoVenta={tipoVenta}
               onUpdate={handleUpdateDetalle}
               onRemove={handleRemoveDetalle}
+              onUpdateDescuento={handleUpdateDescuento}
             />
           </CardContent>
         </Card>
@@ -877,7 +951,7 @@ export function NuevaVentaForm() {
 
       {/* Dialog: Confirmación */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogContent className="sm:max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar venta</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1022,7 +1096,7 @@ export function NuevaVentaForm() {
 
       {/* Dialog: Éxito */}
       <AlertDialog open={showSuccess}>
-        <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogContent className="sm:max-w-2xl">
           <AlertDialogHeader>
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-8 w-8 text-green-600" />

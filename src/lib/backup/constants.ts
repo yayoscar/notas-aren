@@ -21,6 +21,7 @@ export const BACKUP_TABLES = [
   "cat_categoria_gasto",
   "cat_ciudad",
   "cat_cuenta_bancaria",
+  "cat_tipo_descuento",
 
   // Independent entities
   "proveedores",
@@ -43,6 +44,7 @@ export const BACKUP_TABLES = [
   // Sales
   "ventas",
   "ventas_detalle",
+  "ventas_detalle_descuento",
   "ventas_historial",
   "pagos",
   "cobranza_seguimiento",

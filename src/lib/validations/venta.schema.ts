@@ -1,9 +1,17 @@
 import { z } from "zod"
 
+export const descuentoDetalleSchema = z.object({
+  tipo_descuento_id: z.string().uuid("Selecciona un tipo de descuento"),
+  porcentaje: z.coerce.number().int().min(0).max(100),
+  precio_original: z.coerce.number().min(0),
+})
+
 export const ventaDetalleSchema = z.object({
   producto_id: z.string().uuid("Selecciona un producto"),
   precio_unitario: z.coerce.number().min(0, "Precio no puede ser negativo"),
   cantidad: z.coerce.number().int().min(1, "Mínimo 1"),
+  // Descuento opcional por ítem (se persiste en ventas_detalle_descuento)
+  descuento: descuentoDetalleSchema.nullable().optional(),
   // Campos auxiliares (no se envían a la BD)
   _nombre: z.string().optional(),
   _marca: z.string().optional(),
@@ -15,6 +23,8 @@ export const ventaDetalleSchema = z.object({
   _porcentaje_parcial: z.number().optional(),
   _precio_padre: z.number().optional(),
 })
+
+export type DescuentoDetalleValues = z.infer<typeof descuentoDetalleSchema>
 
 export const pagoInlineSchema = z.object({
   monto: z.coerce.number().positive("El monto debe ser mayor a 0"),

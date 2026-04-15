@@ -18,6 +18,9 @@ export const CATALOGO_REFERENCES: Record<string, CatalogoRef[]> = {
     { table: "gastos", column: "cuenta_bancaria_id", label: "gastos" },
   ],
   cat_categoria_gasto: [{ table: "gastos", column: "categoria_id", label: "gastos" }],
+  cat_tipo_descuento: [
+    { table: "ventas_detalle_descuento", column: "tipo_descuento_id", label: "ventas con descuento" },
+  ],
 }
 
 export async function checkReferences(
