@@ -21,6 +21,7 @@ export function ProductoCard({ producto: p }: Props) {
     p.cat_genero?.nombre,
     p.cat_presentacion?.nombre,
     p.cat_tamano?.etiqueta,
+    p.cat_concentracion?.nombre,
   ].filter(Boolean)
 
   return (

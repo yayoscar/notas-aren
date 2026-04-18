@@ -29,12 +29,14 @@ export default function InventarioPage() {
   const generos = useCatalogo("cat_genero")
   const tamanos = useCatalogo("cat_tamano")
   const presentaciones = useCatalogo("cat_presentacion")
+  const concentraciones = useCatalogo("cat_concentracion")
   const [search, setSearch] = useState("")
   const [stockBajoOnly, setStockBajoOnly] = useState(false)
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("todos")
   const [generoFilter, setGeneroFilter] = useState<string>("todos")
   const [tamanoFilter, setTamanoFilter] = useState<string>("todos")
   const [presentacionFilter, setPresentacionFilter] = useState<string>("todos")
+  const [concentracionFilter, setConcentracionFilter] = useState<string>("todos")
 
   const filtered = useMemo((): ProductoWithRelations[] => {
     if (!query.data) return []
@@ -70,10 +72,14 @@ export default function InventarioPage() {
       items = items.filter((p) => p.cat_presentacion?.nombre === presentacionFilter)
     }
 
-    return items
-  }, [query.data, search, stockBajoOnly, estadoFilter, generoFilter, tamanoFilter, presentacionFilter])
+    if (concentracionFilter !== "todos") {
+      items = items.filter((p) => p.cat_concentracion?.nombre === concentracionFilter)
+    }
 
-  const hasActiveFilters = search || stockBajoOnly || estadoFilter !== "todos" || generoFilter !== "todos" || tamanoFilter !== "todos" || presentacionFilter !== "todos"
+    return items
+  }, [query.data, search, stockBajoOnly, estadoFilter, generoFilter, tamanoFilter, presentacionFilter, concentracionFilter])
+
+  const hasActiveFilters = search || stockBajoOnly || estadoFilter !== "todos" || generoFilter !== "todos" || tamanoFilter !== "todos" || presentacionFilter !== "todos" || concentracionFilter !== "todos"
 
   const clearFilters = () => {
     setSearch("")
@@ -82,6 +88,7 @@ export default function InventarioPage() {
     setGeneroFilter("todos")
     setTamanoFilter("todos")
     setPresentacionFilter("todos")
+    setConcentracionFilter("todos")
   }
 
   const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
@@ -160,6 +167,17 @@ export default function InventarioPage() {
                   <SelectItem value="todos">Presentación</SelectItem>
                   {(presentaciones.query.data ?? []).filter(p => p.activo).map((p) => (
                     <SelectItem key={p.id} value={p.nombre ?? ""}>{p.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={concentracionFilter} onValueChange={setConcentracionFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Concentración" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Concentración</SelectItem>
+                  {(concentraciones.query.data ?? []).filter(c => c.activo).map((c) => (
+                    <SelectItem key={c.id} value={c.nombre ?? ""}>{c.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
