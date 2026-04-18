@@ -15,7 +15,7 @@ export function useMarcas() {
         .neq("marca", "")
         .order("marca")
       if (error) throw error
-      const unique = Array.from(new Set(data.map((p) => p.marca)))
+      const unique = Array.from(new Set(data.map((p) => p.marca.trim())))
       return unique.sort((a, b) => a.localeCompare(b, "es"))
     },
   })

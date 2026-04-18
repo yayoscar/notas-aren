@@ -3,31 +3,34 @@
 import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 
-/**
- * Returns the list of distinct product names already registered for a
- * given marca. Used by ProductoForm to suggest existing names and
- * avoid duplicates created by minor typing variants of the same perfume.
- *
- * Mirrors the pattern of useMarcas, but parameterized by marca.
- * If `marca` is empty/undefined, the query is disabled and returns [].
- */
-export function useNombresProducto(marca?: string) {
-  const supabase = createClient()
-  const trimmed = marca?.trim() ?? ""
+export type NombreProducto = { nombre: string; marca: string }
 
-  return useQuery<string[]>({
-    queryKey: ["nombres_producto", trimmed],
-    enabled: trimmed.length > 0,
+export function useNombresProducto() {
+  const supabase = createClient()
+
+  return useQuery<NombreProducto[]>({
+    queryKey: ["nombres_producto"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("productos")
-        .select("nombre")
-        .eq("marca", trimmed)
+        .select("nombre, marca")
         .neq("nombre", "")
-        .order("nombre")
+
       if (error) throw error
-      const unique = Array.from(new Set(data.map((p) => p.nombre)))
-      return unique.sort((a, b) => a.localeCompare(b, "es"))
+
+      const seen = new Map<string, string>()
+      for (const p of data) {
+        const nombre = p.nombre.trim()
+        const marca = p.marca.trim()
+        if (!nombre || !marca) continue
+        if (!seen.has(nombre)) {
+          seen.set(nombre, marca)
+        }
+      }
+
+      return Array.from(seen.entries())
+        .map(([nombre, marca]) => ({ nombre, marca }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
     },
   })
 }

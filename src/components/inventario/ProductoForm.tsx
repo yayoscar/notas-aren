@@ -83,16 +83,21 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
   // Nombre suggestions, scoped to the currently-selected marca.
   const [searchNombre, setSearchNombre] = useState(producto?.nombre ?? "")
   const [showNombres, setShowNombres] = useState(false)
-  const nombresQuery = useNombresProducto(searchMarca)
+  const nombresQuery = useNombresProducto()
 
   const filteredNombres = useMemo(() => {
     if (!nombresQuery.data) return []
-    if (!searchNombre) return nombresQuery.data.slice(0, 10)
+    let items = nombresQuery.data
+    const marcaTrimmed = searchMarca.trim()
+    if (marcaTrimmed) {
+      items = items.filter((item) => item.marca === marcaTrimmed)
+    }
+    if (!searchNombre) return items.slice(0, 10)
     const s = searchNombre.toLowerCase()
-    return nombresQuery.data
-      .filter((n) => n.toLowerCase().includes(s))
+    return items
+      .filter((item) => item.nombre.toLowerCase().includes(s))
       .slice(0, 10)
-  }, [nombresQuery.data, searchNombre])
+  }, [nombresQuery.data, searchMarca, searchNombre])
 
   const [setItems, setSetItems] = useState<SetItem[]>(
     initialSetItems?.length ? initialSetItems : []
@@ -210,9 +215,7 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
               <Label htmlFor="nombre">Nombre *</Label>
               <Input
                 id="nombre"
-                placeholder={
-                  searchMarca ? "Nombre del perfume" : "Selecciona una marca primero"
-                }
+                placeholder="Nombre del perfume"
                 value={searchNombre}
                 onChange={(e) => {
                   const val = e.target.value
@@ -223,23 +226,29 @@ export function ProductoForm({ producto, onSubmit, isPending, initialSetItems }:
                 onFocus={() => setShowNombres(true)}
                 onBlur={() => setTimeout(() => setShowNombres(false), 150)}
                 autoComplete="off"
-                disabled={!searchMarca}
               />
               {showNombres && filteredNombres.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-lg max-h-60 overflow-y-auto">
-                  {filteredNombres.map((n) => (
+                  {filteredNombres.map((item) => (
                     <button
-                      key={n}
+                      key={item.nombre + "-" + item.marca}
                       type="button"
                       className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary transition-colors border-b last:border-b-0"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setValue("nombre", n)
-                        setSearchNombre(n)
+                        setValue("nombre", item.nombre)
+                        setSearchNombre(item.nombre)
+                        if (!searchMarca.trim()) {
+                          setValue("marca", item.marca)
+                          setSearchMarca(item.marca)
+                        }
                         setShowNombres(false)
                       }}
                     >
-                      {n}
+                      <span>{item.nombre}</span>
+                      {!searchMarca.trim() && (
+                        <span className="text-muted-foreground ml-1">({item.marca})</span>
+                      )}
                     </button>
                   ))}
                 </div>

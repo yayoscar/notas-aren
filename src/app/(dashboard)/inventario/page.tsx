@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useProductos, type ProductoWithRelations } from "@/hooks/useProductos"
+import { useCatalogo } from "@/hooks/useCatalogos"
 import { StockBadge } from "@/components/inventario/StockBadge"
 import { ProductoCard } from "@/components/inventario/ProductoCard"
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Filter } from "lucide-react"
+import { Plus, Search, Filter, X } from "lucide-react"
 import { formatMoney } from "@/lib/utils"
 import {
   Select,
@@ -25,9 +26,15 @@ type EstadoFilter = "todos" | "nuevo" | "parcial" | "segunda"
 
 export default function InventarioPage() {
   const { query } = useProductos()
+  const generos = useCatalogo("cat_genero")
+  const tamanos = useCatalogo("cat_tamano")
+  const presentaciones = useCatalogo("cat_presentacion")
   const [search, setSearch] = useState("")
   const [stockBajoOnly, setStockBajoOnly] = useState(false)
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("todos")
+  const [generoFilter, setGeneroFilter] = useState<string>("todos")
+  const [tamanoFilter, setTamanoFilter] = useState<string>("todos")
+  const [presentacionFilter, setPresentacionFilter] = useState<string>("todos")
 
   const filtered = useMemo((): ProductoWithRelations[] => {
     if (!query.data) return []
@@ -51,8 +58,31 @@ export default function InventarioPage() {
       items = items.filter((p) => p.estado_producto === estadoFilter)
     }
 
+    if (generoFilter !== "todos") {
+      items = items.filter((p) => p.cat_genero?.nombre === generoFilter)
+    }
+
+    if (tamanoFilter !== "todos") {
+      items = items.filter((p) => p.cat_tamano?.etiqueta === tamanoFilter)
+    }
+
+    if (presentacionFilter !== "todos") {
+      items = items.filter((p) => p.cat_presentacion?.nombre === presentacionFilter)
+    }
+
     return items
-  }, [query.data, search, stockBajoOnly, estadoFilter])
+  }, [query.data, search, stockBajoOnly, estadoFilter, generoFilter, tamanoFilter, presentacionFilter])
+
+  const hasActiveFilters = search || stockBajoOnly || estadoFilter !== "todos" || generoFilter !== "todos" || tamanoFilter !== "todos" || presentacionFilter !== "todos"
+
+  const clearFilters = () => {
+    setSearch("")
+    setStockBajoOnly(false)
+    setEstadoFilter("todos")
+    setGeneroFilter("todos")
+    setTamanoFilter("todos")
+    setPresentacionFilter("todos")
+  }
 
   const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     nuevo: { label: "Nuevo", variant: "default" },
@@ -85,7 +115,7 @@ export default function InventarioPage() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Select
                 value={estadoFilter}
                 onValueChange={(v) => setEstadoFilter(v as EstadoFilter)}
@@ -100,6 +130,39 @@ export default function InventarioPage() {
                   <SelectItem value="segunda">Segundas</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={generoFilter} onValueChange={setGeneroFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Género" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Género</SelectItem>
+                  {(generos.query.data ?? []).filter(g => g.activo).map((g) => (
+                    <SelectItem key={g.id} value={g.nombre ?? ""}>{g.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={tamanoFilter} onValueChange={setTamanoFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Tamaño" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Tamaño</SelectItem>
+                  {(tamanos.query.data ?? []).filter(t => t.activo).map((t) => (
+                    <SelectItem key={t.id} value={t.etiqueta ?? ""}>{t.etiqueta}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={presentacionFilter} onValueChange={setPresentacionFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Presentación" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Presentación</SelectItem>
+                  {(presentaciones.query.data ?? []).filter(p => p.activo).map((p) => (
+                    <SelectItem key={p.id} value={p.nombre ?? ""}>{p.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button
                 variant={stockBajoOnly ? "default" : "outline"}
                 onClick={() => setStockBajoOnly(!stockBajoOnly)}
@@ -107,6 +170,12 @@ export default function InventarioPage() {
                 <Filter className="mr-2 h-4 w-4" />
                 Stock bajo
               </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" onClick={clearFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Limpiar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -116,7 +185,7 @@ export default function InventarioPage() {
             </div>
           ) : filtered.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">
-              {search || stockBajoOnly || estadoFilter !== "todos"
+              {hasActiveFilters
                 ? "No se encontraron resultados"
                 : "No hay productos registrados"}
             </p>
