@@ -84,9 +84,9 @@ export function useImportClientes() {
   return useMutation<
     ImportResult,
     Error,
-    { rows: { nombre: string; telefono: string; fecha_nacimiento?: string }[]; ciudadId: string }
+    { rows: { nombre: string; telefono: string; fecha_nacimiento?: string }[]; ciudadId: string; usuarioId: string }
   >({
-    mutationFn: async ({ rows, ciudadId }) => {
+    mutationFn: async ({ rows, ciudadId, usuarioId }) => {
       const result: ImportResult = { inserted: 0, rejected: [] }
 
       // Check for existing clients by phone
@@ -104,6 +104,7 @@ export function useImportClientes() {
         ciudad_id: string
         direccion: string
         referencia_ubicacion: string
+        usuario_id: string
       }[] = []
 
       rows.forEach((row, i) => {
@@ -118,6 +119,7 @@ export function useImportClientes() {
           ciudad_id: ciudadId,
           direccion: "",
           referencia_ubicacion: "",
+          usuario_id: usuarioId,
         })
       })
 

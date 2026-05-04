@@ -8,6 +8,7 @@ import { toast } from "sonner"
 export type ClienteWithRelations = Cliente & {
   cat_ciudad: { nombre: string } | null
   referido_por: { nombre: string } | null
+  creado_por: { nombre: string } | null
 }
 
 export function useClientes() {
@@ -25,14 +26,23 @@ export function useClientes() {
         `)
         .order("nombre")
       if (error) throw error
-      // Resolve referido_por in-memory (self-join can fail in PostgREST)
       const clientes = data as unknown as (Cliente & { cat_ciudad: { nombre: string } | null })[]
+
+      // Resolve creado_por: fetch vendedores and match by auth_user_id
+      const { data: vendedores } = await supabase
+        .from("vendedores")
+        .select("auth_user_id, nombre")
+      const vendedorMap = new Map((vendedores ?? []).map((v) => [v.auth_user_id, v.nombre]))
+
       return clientes.map((c) => ({
         ...c,
         referido_por: c.cliente_referido_id
           ? clientes.find((r) => r.id === c.cliente_referido_id)
             ? { nombre: clientes.find((r) => r.id === c.cliente_referido_id)!.nombre }
             : null
+          : null,
+        creado_por: c.usuario_id
+          ? { nombre: vendedorMap.get(c.usuario_id) ?? null }
           : null,
       }))
     },
@@ -92,7 +102,16 @@ export function useCliente(id: string) {
           .single()
         if (ref) referido_por = { nombre: ref.nombre }
       }
-      return { ...cliente, referido_por }
+      let creado_por: { nombre: string } | null = null
+      if (cliente.usuario_id) {
+        const { data: vendedor } = await supabase
+          .from("vendedores")
+          .select("nombre")
+          .eq("auth_user_id", cliente.usuario_id)
+          .maybeSingle()
+        if (vendedor) creado_por = { nombre: vendedor.nombre }
+      }
+      return { ...cliente, referido_por, creado_por }
     },
     enabled: !!id,
   })

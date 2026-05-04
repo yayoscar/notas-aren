@@ -96,6 +96,11 @@ export default function ClientesPage() {
                         Ref: {c.referido_por.nombre}
                       </div>
                     )}
+                    {c.creado_por?.nombre && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Creado por: {c.creado_por.nombre}
+                      </div>
+                    )}
                   </Link>
                 ))}
               </div>
@@ -109,13 +114,14 @@ export default function ClientesPage() {
                       <TableHead>Teléfono</TableHead>
                       <TableHead>Ciudad</TableHead>
                       <TableHead>Referido por</TableHead>
+                      <TableHead>Creado por</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           Sin clientes registrados
                         </TableCell>
                       </TableRow>
@@ -130,6 +136,7 @@ export default function ClientesPage() {
                         <TableCell>{c.telefono}</TableCell>
                         <TableCell>{c.cat_ciudad?.nombre ?? "—"}</TableCell>
                         <TableCell>{c.referido_por?.nombre ?? "—"}</TableCell>
+                        <TableCell>{c.creado_por?.nombre ?? "—"}</TableCell>
                         <TableCell>
                           <Badge variant={c.activo ? "default" : "secondary"}>
                             {c.activo ? "Activo" : "Inactivo"}

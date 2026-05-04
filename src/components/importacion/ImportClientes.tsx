@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ImportUploader } from "./ImportUploader"
 import { ImportResults } from "./ImportResults"
 import { useImportClientes } from "@/hooks/useImportacion"
+import { useVendedorActual } from "@/hooks/useVendedorActual"
 import { useCatalogo } from "@/hooks/useCatalogos"
 import {
   importClienteRowSchema,
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label"
 
 export function ImportClientes() {
   const importMutation = useImportClientes()
+  const { vendedor } = useVendedorActual()
   const { query: ciudadesQuery } = useCatalogo("cat_ciudad")
   const ciudades = ciudadesQuery.data
   const isLoadingCiudades = ciudadesQuery.isLoading
@@ -45,7 +47,7 @@ export function ImportClientes() {
       fecha_nacimiento: row.fecha_nacimiento || undefined,
     }))
     importMutation.mutate(
-      { rows: parsed, ciudadId },
+      { rows: parsed, ciudadId, usuarioId: vendedor?.auth_user_id ?? "" },
       { onSuccess: (res) => setResult(res) }
     )
   }

@@ -159,10 +159,11 @@ export default function ClienteDetailPage() {
               <CardTitle>Información adicional</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <DetailRow label="Referido por" value={c.referido_por?.nombre} />
                 <DetailRow label="Relación con referido" value={c.tipo_relacion_referido} />
                 <DetailRow label="Límite de crédito" value={formatMoney(Number(c.limite_credito))} />
+                <DetailRow label="Creado por" value={c.creado_por?.nombre} />
                 <DetailRow
                   label="Fecha de alta"
                   value={new Date(c.created_at).toLocaleDateString("es-MX")}
