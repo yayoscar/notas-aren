@@ -287,11 +287,12 @@ export function useEliminarCliente() {
 
       return { clienteId }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clientes"] })
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ["clientes"] })
       queryClient.invalidateQueries({ queryKey: ["ventas"] })
       queryClient.invalidateQueries({ queryKey: ["pagos"] })
       queryClient.invalidateQueries({ queryKey: ["lineas_credito_activas"] })
+      await queryClient.refetchQueries({ queryKey: ["clientes"] })
       toast.success("Cliente eliminado exitosamente")
     },
     onError: (err) =>
