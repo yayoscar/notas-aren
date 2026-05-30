@@ -111,9 +111,9 @@ export default function InventarioPage() {
 
       <Card>
         <CardContent className="pt-6">
-          {/* Filters — stacks on mobile, row on desktop */}
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
+          {/* Filters */}
+          <div className="mb-4 flex flex-col gap-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre, marca o SKU..."
@@ -221,10 +221,12 @@ export default function InventarioPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Nombre</TableHead>
                       <TableHead>Marca</TableHead>
-                      <TableHead className="hidden lg:table-cell">Género</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Género</TableHead>
+                      <TableHead>Presentación</TableHead>
+                      <TableHead>Concentración</TableHead>
+                      <TableHead>Tamaño</TableHead>
                       <TableHead className="hidden lg:table-cell">Tipo</TableHead>
                       <TableHead className="text-right">P. Contado</TableHead>
                       <TableHead className="text-right">P. Crédito</TableHead>
@@ -234,11 +236,7 @@ export default function InventarioPage() {
                   <TableBody>
                     {filtered.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell>
-                          <Link href={`/inventario/${p.id}`} className="font-mono text-sm hover:underline">
-                            {p.sku}
-                          </Link>
-                        </TableCell>
+                        <TableCell>{p.marca}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Link href={`/inventario/${p.id}`} className="font-medium hover:underline">
@@ -254,8 +252,10 @@ export default function InventarioPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{p.marca}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{p.cat_genero?.nombre ?? "—"}</TableCell>
+                        <TableCell>{p.cat_genero?.nombre ?? "—"}</TableCell>
+                        <TableCell>{p.cat_presentacion?.nombre ?? "—"}</TableCell>
+                        <TableCell>{p.cat_concentracion?.nombre ?? "—"}</TableCell>
+                        <TableCell>{p.cat_tamano?.etiqueta ?? "—"}</TableCell>
                         <TableCell className="hidden lg:table-cell">{p.cat_tipo_perfume?.nombre ?? "—"}</TableCell>
                         <TableCell className="text-right">{formatMoney(Number(p.precio_venta_contado))}</TableCell>
                         <TableCell className="text-right">{formatMoney(Number(p.precio_venta_credito))}</TableCell>
