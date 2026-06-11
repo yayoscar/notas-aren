@@ -206,93 +206,182 @@ export function useEliminarCliente() {
     mutationFn: async (input: { clienteId: string }) => {
       const { clienteId } = input
 
-      // Safety check: verify no active credit
+      // Pre-flight checks: verify no active credit or referrals blocking deletion
       const { data: lineaActiva } = await supabase
         .from("lineas_credito")
-        .select("id")
+        .select("id, saldo_total, saldo_pagado")
         .eq("cliente_id", clienteId)
         .eq("estado", "activa")
         .maybeSingle()
 
       if (lineaActiva) {
-        throw new Error("No se puede eliminar un cliente con crédito activo")
+        const pendiente = lineaActiva.saldo_total - lineaActiva.saldo_pagado
+        throw new Error(
+          `No se puede eliminar: el cliente tiene un crédito activo con saldo pendiente de $${pendiente.toFixed(2)}. Liquida o cancela el crédito primero.`
+        )
       }
 
-      // 1. Clear referral relationships (SET NULL)
-      await supabase
-        .from("clientes")
-        .update({ cliente_referido_id: null })
-        .eq("cliente_referido_id", clienteId)
+      // Cascade delete in FK order
+      const steps = [
+        {
+          name: "referidos",
+          fn: () =>
+            supabase
+              .from("clientes")
+              .update({ cliente_referido_id: null })
+              .eq("cliente_referido_id", clienteId),
+        },
+        {
+          name: "cobranza_seguimiento",
+          fn: async () => {
+            const { data: lineas } = await supabase
+              .from("lineas_credito")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (lineas ?? []).map((l) => l.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("cobranza_seguimiento")
+              .delete()
+              .in("linea_credito_id", ids)
+            if (error) throw error
+          },
+        },
+        {
+          name: "ventas_historial",
+          fn: async () => {
+            const { data: ventas } = await supabase
+              .from("ventas")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (ventas ?? []).map((v) => v.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("ventas_historial")
+              .delete()
+              .in("venta_id", ids)
+            if (error) throw error
+          },
+        },
+        {
+          name: "ventas_detalle",
+          fn: async () => {
+            const { data: ventas } = await supabase
+              .from("ventas")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (ventas ?? []).map((v) => v.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("ventas_detalle")
+              .delete()
+              .in("venta_id", ids)
+            if (error) throw error
+          },
+        },
+        {
+          name: "devoluciones_detalle",
+          fn: async () => {
+            const { data: devoluciones } = await supabase
+              .from("devoluciones")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (devoluciones ?? []).map((d) => d.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("devoluciones_detalle")
+              .delete()
+              .in("devolucion_id", ids)
+            if (error) throw error
+          },
+        },
+        {
+          name: "pagos",
+          fn: () =>
+            supabase.from("pagos").delete().eq("cliente_id", clienteId),
+        },
+        {
+          name: "devoluciones",
+          fn: () =>
+            supabase.from("devoluciones").delete().eq("cliente_id", clienteId),
+        },
+        {
+          name: "saldos_favor",
+          fn: () =>
+            supabase
+              .from("saldos_favor")
+              .delete()
+              .eq("cliente_id", clienteId),
+        },
+        {
+          name: "ventas",
+          fn: async () => {
+            const { data: ventas } = await supabase
+              .from("ventas")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (ventas ?? []).map((v) => v.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("ventas")
+              .delete()
+              .in("id", ids)
+            if (error) throw error
+          },
+        },
+        {
+          name: "lineas_credito",
+          fn: async () => {
+            const { data: lineas } = await supabase
+              .from("lineas_credito")
+              .select("id")
+              .eq("cliente_id", clienteId)
+            const ids = (lineas ?? []).map((l) => l.id)
+            if (ids.length === 0) return
+            const { error } = await supabase
+              .from("lineas_credito")
+              .delete()
+              .in("id", ids)
+            if (error) throw error
+          },
+        },
+      ]
 
-      // 2. Get IDs for cascade delete
-      const { data: ventas } = await supabase
-        .from("ventas")
-        .select("id")
-        .eq("cliente_id", clienteId)
-      const ventaIds = (ventas ?? []).map((v) => v.id)
-
-      const { data: devoluciones } = await supabase
-        .from("devoluciones")
-        .select("id")
-        .eq("cliente_id", clienteId)
-      const devolucionIds = (devoluciones ?? []).map((d) => d.id)
-
-      const { data: lineas } = await supabase
-        .from("lineas_credito")
-        .select("id")
-        .eq("cliente_id", clienteId)
-      const lineaIds = (lineas ?? []).map((l) => l.id)
-
-      // 3. Delete in FK order
-      if (lineaIds.length > 0) {
-        await supabase
-          .from("cobranza_seguimiento")
-          .delete()
-          .in("linea_credito_id", lineaIds)
+      for (const step of steps) {
+        try {
+          await step.fn()
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.toLowerCase().includes("foreign key constraint")) {
+            throw new Error(
+              `Error al eliminar ${step.name}: hay datos asociados que impiden la eliminacion. Es posible que falte una tabla en la cascada de eliminacion.`
+            )
+          }
+          throw new Error(`Error al eliminar ${step.name}: ${msg}`)
+        }
       }
-      if (ventaIds.length > 0) {
-        await supabase
-          .from("ventas_historial")
-          .delete()
-          .in("venta_id", ventaIds)
-        await supabase
-          .from("ventas_detalle")
-          .delete()
-          .in("venta_id", ventaIds)
-      }
-      if (devolucionIds.length > 0) {
-        await supabase
-          .from("devoluciones_detalle")
-          .delete()
-          .in("devolucion_id", devolucionIds)
-      }
 
-      await supabase.from("pagos").delete().eq("cliente_id", clienteId)
-      await supabase.from("devoluciones").delete().eq("cliente_id", clienteId)
-      await supabase.from("saldos_favor").delete().eq("cliente_id", clienteId)
-
-      if (ventaIds.length > 0) {
-        await supabase.from("ventas").delete().in("id", ventaIds)
-      }
-      if (lineaIds.length > 0) {
-        await supabase.from("lineas_credito").delete().in("id", lineaIds)
-      }
-
-      // 4. Finally delete the client
+      // Final: delete the client itself
       const { error } = await supabase
         .from("clientes")
         .delete()
         .eq("id", clienteId)
-      if (error) throw error
+      if (error) {
+        if (error.message.toLowerCase().includes("foreign key constraint")) {
+          throw new Error(
+            "No se puede eliminar el cliente: aun existen datos asociados. Verifica que todas las relaciones hayan sido eliminadas."
+          )
+        }
+        throw new Error(`Error al eliminar cliente: ${error.message}`)
+      }
 
       return { clienteId }
     },
-    onSuccess: async () => {
-      queryClient.removeQueries({ queryKey: ["clientes"] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clientes"] })
       queryClient.invalidateQueries({ queryKey: ["ventas"] })
       queryClient.invalidateQueries({ queryKey: ["pagos"] })
       queryClient.invalidateQueries({ queryKey: ["lineas_credito_activas"] })
-      await queryClient.refetchQueries({ queryKey: ["clientes"] })
       toast.success("Cliente eliminado exitosamente")
     },
     onError: (err) =>

@@ -45,10 +45,10 @@ export function RegistrarSegundaDialog({ producto, open, onOpenChange }: Props) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Registrar como Segunda</DialogTitle>
+          <DialogTitle>Registrar como Tester</DialogTitle>
           <DialogDescription>
             Se descontará del stock de <strong>{producto.nombre}</strong> y se
-            creará (o actualizará) un registro segunda. El precio se puede
+            creará (o actualizará) un registro tester. El precio se puede
             ajustar después con &quot;Editar precio&quot;.
           </DialogDescription>
         </DialogHeader>
@@ -73,7 +73,7 @@ export function RegistrarSegundaDialog({ producto, open, onOpenChange }: Props) 
             />
             {cantidad > producto.stock_actual && (
               <p className="text-sm text-destructive">
-                No puedes registrar más segundas que el stock disponible
+                No puedes registrar más testers que el stock disponible
               </p>
             )}
           </div>
@@ -91,7 +91,7 @@ export function RegistrarSegundaDialog({ producto, open, onOpenChange }: Props) 
               cantidad > producto.stock_actual
             }
           >
-            {crearSegunda.isPending ? "Registrando..." : "Registrar Segunda"}
+            {crearSegunda.isPending ? "Registrando..." : "Registrar Tester"}
           </Button>
         </DialogFooter>
       </DialogContent>

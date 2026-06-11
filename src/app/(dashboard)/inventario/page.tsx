@@ -94,7 +94,7 @@ export default function InventarioPage() {
   const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     nuevo: { label: "Nuevo", variant: "default" },
     parcial: { label: "Parcial", variant: "secondary" },
-    segunda: { label: "Segunda", variant: "outline" },
+    segunda: { label: "Tester", variant: "outline" },
   }
 
   return (
@@ -134,7 +134,7 @@ export default function InventarioPage() {
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="nuevo">Nuevos</SelectItem>
                   <SelectItem value="parcial">Parciales</SelectItem>
-                  <SelectItem value="segunda">Segundas</SelectItem>
+                  <SelectItem value="segunda">Testers</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={generoFilter} onValueChange={setGeneroFilter}>

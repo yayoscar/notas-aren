@@ -39,6 +39,13 @@ export function EliminarClienteDialog({
   const nameMatches =
     confirmName.trim().toLowerCase() === clienteNombre.trim().toLowerCase()
 
+  const errorMessage =
+    eliminar.isError && eliminar.error instanceof Error
+      ? eliminar.error.message
+      : eliminar.isError
+        ? "Error al eliminar cliente"
+        : null
+
   function handleDelete() {
     eliminar.mutate(
       { clienteId },
@@ -97,6 +104,39 @@ export function EliminarClienteDialog({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button onClick={() => onOpenChange(false)}>Entendido</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )
+  }
+
+  // ERROR: Deletion failed
+  if (errorMessage && !eliminar.isPending) {
+    return (
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              Error al eliminar
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                eliminar.reset()
+                onOpenChange(false)
+              }}
+            >
+              Cerrar
+            </Button>
+            <Button variant="destructive" onClick={() => eliminar.reset()}>
+              Reintentar
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

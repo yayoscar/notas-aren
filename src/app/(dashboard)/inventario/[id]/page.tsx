@@ -39,7 +39,7 @@ const TIPO_LABELS: Record<string, string> = {
 const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   nuevo: { label: "Nuevo", variant: "default" },
   parcial: { label: "Parcial", variant: "secondary" },
-  segunda: { label: "Segunda", variant: "outline" },
+  segunda: { label: "Tester", variant: "outline" },
 }
 
 export default function ProductoDetailPage() {
@@ -132,7 +132,7 @@ export default function ProductoDetailPage() {
               onClick={() => setSegundaDialogOpen(true)}
             >
               <PackageMinus className="mr-2 h-4 w-4" />
-              Registrar como Segunda
+              Registrar como Tester
             </Button>
           )}
           {!esDerivado && (
@@ -342,7 +342,7 @@ export default function ProductoDetailPage() {
         <TabsContent value="derivados" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Parciales y Segundas</CardTitle>
+              <CardTitle>Parciales y Testers</CardTitle>
             </CardHeader>
             <CardContent>
               {derivadosQuery.isLoading ? (
