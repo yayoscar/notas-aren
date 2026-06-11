@@ -24,10 +24,10 @@ import { formatMoney } from "@/lib/utils"
 interface DetalleRow {
   producto_id: string
   producto_nombre: string
-  cantidad: number
-  precio_unitario: number
-  precio_venta_contado: number
-  precio_venta_credito: number
+  cantidad: number | ""
+  precio_unitario: number | ""
+  precio_venta_contado: number | ""
+  precio_venta_credito: number | ""
 }
 
 interface PrecioDialogItem {
@@ -70,7 +70,7 @@ export default function NuevaEntradaPage() {
   })
 
   const total = useMemo(
-    () => detalles.reduce((sum, d) => sum + d.cantidad * d.precio_unitario, 0),
+    () => detalles.reduce((sum, d) => sum + (Number(d.cantidad) || 0) * (Number(d.precio_unitario) || 0), 0),
     [detalles]
   )
 
@@ -81,7 +81,7 @@ export default function NuevaEntradaPage() {
       .filter(
         (p) =>
           p.activo &&
-          (p.nombre.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s))
+          (p.nombre.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.marca.toLowerCase().includes(s))
       )
       .slice(0, 10)
   }, [productos.query.data, searchProducto])
@@ -100,10 +100,10 @@ export default function NuevaEntradaPage() {
       {
         producto_id: producto.id,
         producto_nombre: `${producto.sku ?? ""} — ${producto.nombre}`,
-        cantidad: 1,
-        precio_unitario: Number(producto.precio_compra),
-        precio_venta_contado: Number(producto.precio_venta_contado),
-        precio_venta_credito: Number(producto.precio_venta_credito),
+        cantidad: "",
+        precio_unitario: "",
+        precio_venta_contado: "",
+        precio_venta_credito: "",
       },
     ])
     setSearchProducto("")
@@ -112,22 +112,39 @@ export default function NuevaEntradaPage() {
 
   function updateDetalle(
     index: number,
-    field: "cantidad" | "precio_unitario" | "precio_venta_contado" | "precio_venta_credito",
-    value: number
+    field: keyof Omit<DetalleRow, "producto_id" | "producto_nombre">,
+    value: string
   ) {
     const updated = [...detalles]
-    updated[index] = { ...updated[index], [field]: value }
+    updated[index] = { ...updated[index], [field]: value === "" ? "" : Number(value) }
     setDetalles(updated)
+    if (validationErrors.length > 0) setValidationErrors([])
   }
 
   function removeDetalle(index: number) {
     setDetalles(detalles.filter((_, i) => i !== index))
   }
 
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+
   // Check prices for all products and build dialog queue
   const checkPricesAndSubmit = useCallback(
     async (values: Omit<EntradaFormValues, "detalles">) => {
       if (detalles.length === 0) return
+
+      // Validate all detalle fields are filled
+      const errors: string[] = []
+      detalles.forEach((d) => {
+        if (d.cantidad === "" || d.cantidad <= 0) errors.push(`Producto "${d.producto_nombre}": la cantidad es obligatoria`)
+        if (d.precio_unitario === "" || d.precio_unitario <= 0) errors.push(`Producto "${d.producto_nombre}": el precio de compra es obligatorio`)
+        if (d.precio_venta_contado === "" || d.precio_venta_contado <= 0) errors.push(`Producto "${d.producto_nombre}": el precio contado es obligatorio`)
+        if (d.precio_venta_credito === "" || d.precio_venta_credito <= 0) errors.push(`Producto "${d.producto_nombre}": el precio crédito es obligatorio`)
+      })
+      if (errors.length > 0) {
+        setValidationErrors(errors)
+        return
+      }
+      setValidationErrors([])
 
       // For each product, check if prices differ from active
       const queue: PrecioDialogItem[] = []
@@ -145,9 +162,9 @@ export default function NuevaEntradaPage() {
           precio_venta_credito: Number(prod.precio_venta_credito),
         }
         const precioNuevo = {
-          precio_compra: d.precio_unitario,
-          precio_venta_contado: d.precio_venta_contado,
-          precio_venta_credito: d.precio_venta_credito,
+          precio_compra: Number(d.precio_unitario) || 0,
+          precio_venta_contado: Number(d.precio_venta_contado) || 0,
+          precio_venta_credito: Number(d.precio_venta_credito) || 0,
         }
 
         const changed =
@@ -226,9 +243,9 @@ export default function NuevaEntradaPage() {
       if (!detalle) continue
       await crearPrecio.mutateAsync({
         producto_id: productoId,
-        precio_compra: detalle.precio_unitario,
-        precio_venta_contado: detalle.precio_venta_contado,
-        precio_venta_credito: detalle.precio_venta_credito,
+        precio_compra: Number(detalle.precio_unitario),
+        precio_venta_contado: Number(detalle.precio_venta_contado),
+        precio_venta_credito: Number(detalle.precio_venta_credito),
         origen: "entrada",
       })
     }
@@ -242,10 +259,10 @@ export default function NuevaEntradaPage() {
         notas: values.notas || null,
         detalles: detalles.map((d) => ({
           producto_id: d.producto_id,
-          cantidad: d.cantidad,
-          precio_unitario: d.precio_unitario,
-          precio_venta_contado: d.precio_venta_contado,
-          precio_venta_credito: d.precio_venta_credito,
+          cantidad: Number(d.cantidad),
+          precio_unitario: Number(d.precio_unitario),
+          precio_venta_contado: Number(d.precio_venta_contado),
+          precio_venta_credito: Number(d.precio_venta_credito),
         })),
       },
       { onSuccess: () => router.push("/entradas") }
@@ -312,7 +329,7 @@ export default function NuevaEntradaPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar producto por nombre o SKU..."
+                  placeholder="Buscar producto por nombre, SKU o marca..."
                   value={searchProducto}
                   onChange={(e) => {
                     setSearchProducto(e.target.value)
@@ -395,7 +412,7 @@ export default function NuevaEntradaPage() {
                         type="number"
                         min={1}
                         value={d.cantidad}
-                        onChange={(e) => updateDetalle(i, "cantidad", parseInt(e.target.value) || 1)}
+                        onChange={(e) => updateDetalle(i, "cantidad", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
@@ -405,7 +422,7 @@ export default function NuevaEntradaPage() {
                         step="0.01"
                         min={0}
                         value={d.precio_unitario}
-                        onChange={(e) => updateDetalle(i, "precio_unitario", parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateDetalle(i, "precio_unitario", e.target.value)}
                       />
                     </div>
                   </div>
@@ -417,7 +434,7 @@ export default function NuevaEntradaPage() {
                         step="0.01"
                         min={0}
                         value={d.precio_venta_contado}
-                        onChange={(e) => updateDetalle(i, "precio_venta_contado", parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateDetalle(i, "precio_venta_contado", e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
@@ -427,12 +444,12 @@ export default function NuevaEntradaPage() {
                         step="0.01"
                         min={0}
                         value={d.precio_venta_credito}
-                        onChange={(e) => updateDetalle(i, "precio_venta_credito", parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateDetalle(i, "precio_venta_credito", e.target.value)}
                       />
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-mono font-medium">Subtotal: {formatMoney(d.cantidad * d.precio_unitario)}</span>
+                    <span className="text-sm font-mono font-medium">Subtotal: {formatMoney((Number(d.cantidad) || 0) * (Number(d.precio_unitario) || 0))}</span>
                   </div>
                 </div>
               ))}
@@ -474,7 +491,7 @@ export default function NuevaEntradaPage() {
                           type="number"
                           min={1}
                           value={d.cantidad}
-                          onChange={(e) => updateDetalle(i, "cantidad", parseInt(e.target.value) || 1)}
+                          onChange={(e) => updateDetalle(i, "cantidad", e.target.value)}
                         />
                       </TableCell>
                       <TableCell>
@@ -483,7 +500,7 @@ export default function NuevaEntradaPage() {
                           step="0.01"
                           min={0}
                           value={d.precio_unitario}
-                          onChange={(e) => updateDetalle(i, "precio_unitario", parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateDetalle(i, "precio_unitario", e.target.value)}
                         />
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
@@ -492,7 +509,7 @@ export default function NuevaEntradaPage() {
                           step="0.01"
                           min={0}
                           value={d.precio_venta_contado}
-                          onChange={(e) => updateDetalle(i, "precio_venta_contado", parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateDetalle(i, "precio_venta_contado", e.target.value)}
                         />
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
@@ -501,11 +518,11 @@ export default function NuevaEntradaPage() {
                           step="0.01"
                           min={0}
                           value={d.precio_venta_credito}
-                          onChange={(e) => updateDetalle(i, "precio_venta_credito", parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateDetalle(i, "precio_venta_credito", e.target.value)}
                         />
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {formatMoney(d.cantidad * d.precio_unitario)}
+                        {formatMoney((Number(d.cantidad) || 0) * (Number(d.precio_unitario) || 0))}
                       </TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" type="button" onClick={() => removeDetalle(i)}>
@@ -534,6 +551,15 @@ export default function NuevaEntradaPage() {
             )}
           </CardContent>
         </Card>
+
+        {validationErrors.length > 0 && (
+          <div className="rounded-lg border border-destructive bg-destructive/10 p-3 space-y-1">
+            <p className="text-sm font-medium text-destructive">Corrige los siguientes errores:</p>
+            {validationErrors.map((err, i) => (
+              <p key={i} className="text-sm text-destructive">• {err}</p>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={() => router.push("/entradas")}>
