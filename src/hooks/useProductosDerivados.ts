@@ -104,7 +104,7 @@ export function useCrearParcial() {
           .insert({
             nombre: parent.nombre,
             marca: parent.marca,
-            sku: parent.sku,
+            sku: null, // derivados no reusan el SKU del padre (viola productos_sku_key)
             genero_id: parent.genero_id,
             tamano_id: parent.tamano_id,
             presentacion_id: parent.presentacion_id,
@@ -235,7 +235,7 @@ export function useCrearSegunda() {
           .insert({
             nombre: source.nombre,
             marca: source.marca,
-            sku: source.sku,
+            sku: null, // derivados no reusan el SKU del padre (viola productos_sku_key)
             genero_id: source.genero_id,
             tamano_id: source.tamano_id,
             presentacion_id: source.presentacion_id,
