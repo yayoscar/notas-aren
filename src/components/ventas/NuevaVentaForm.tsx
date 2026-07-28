@@ -598,7 +598,7 @@ export function NuevaVentaForm() {
                 <span className="text-sm font-medium">{d._nombre}</span>
                 {d._estado_producto && d._estado_producto !== "nuevo" && (
                   <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                    {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
+                    {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Tester${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
                   </Badge>
                 )}
                 {d.descuento && (
@@ -641,7 +641,7 @@ export function NuevaVentaForm() {
                     {d._nombre}
                     {d._estado_producto && d._estado_producto !== "nuevo" && (
                       <span className="ml-1 text-xs text-muted-foreground">
-                        ({d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`})
+                        ({d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Tester${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`})
                       </span>
                     )}
                     {d.descuento && (

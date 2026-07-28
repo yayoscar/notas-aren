@@ -355,7 +355,7 @@ export default function VentaDetailPage() {
                         {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
                           const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
                           const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
-                          const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
+                          const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Tester"
                           return (
                             <Badge variant="secondary" className="text-[10px] px-1 py-0">
                               {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}
@@ -417,7 +417,7 @@ export default function VentaDetailPage() {
                             {d.productos?.estado_producto && d.productos.estado_producto !== "nuevo" && (() => {
                               const precioRef = venta.tipo_venta === "contado" ? d.productos.precio_venta_contado : d.productos.precio_venta_credito
                               const pct = precioRef && precioRef > 0 ? Math.round((d.precio_unitario / precioRef) * 100) : null
-                              const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Segunda"
+                              const label = d.productos.estado_producto === "parcial" ? "Parcial" : "Tester"
                               return (
                                 <Badge variant="secondary" className="text-[10px] px-1 py-0">
                                   {label}{pct !== null && pct < 100 ? ` ${pct}%` : ""}

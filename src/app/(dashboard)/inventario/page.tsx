@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Filter, X } from "lucide-react"
+import { Plus, Search, X, PackageCheck, AlertTriangle, Layers, type LucideIcon } from "lucide-react"
 import { formatMoney } from "@/lib/utils"
 import {
   Select,
@@ -24,6 +24,16 @@ import {
 
 type EstadoFilter = "todos" | "nuevo" | "parcial" | "segunda"
 
+// Vista de stock: "disponible" (con stock > 0) por defecto, "bajo" (stock ≤ mínimo),
+// "todos" (sin filtrar). El botón cíclico alterna entre estos tres estados.
+type StockView = "disponible" | "bajo" | "todos"
+
+const STOCK_VIEWS: { value: StockView; label: string; icon: LucideIcon }[] = [
+  { value: "disponible", label: "Con stock", icon: PackageCheck },
+  { value: "bajo", label: "Stock bajo", icon: AlertTriangle },
+  { value: "todos", label: "Todos", icon: Layers },
+]
+
 export default function InventarioPage() {
   const { query } = useProductos()
   const generos = useCatalogo("cat_genero")
@@ -31,7 +41,8 @@ export default function InventarioPage() {
   const presentaciones = useCatalogo("cat_presentacion")
   const concentraciones = useCatalogo("cat_concentracion")
   const [search, setSearch] = useState("")
-  const [stockBajoOnly, setStockBajoOnly] = useState(false)
+  // Por defecto mostramos solo productos con stock disponible.
+  const [stockView, setStockView] = useState<StockView>("disponible")
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("todos")
   const [generoFilter, setGeneroFilter] = useState<string>("todos")
   const [tamanoFilter, setTamanoFilter] = useState<string>("todos")
@@ -52,9 +63,12 @@ export default function InventarioPage() {
       )
     }
 
-    if (stockBajoOnly) {
+    if (stockView === "disponible") {
+      items = items.filter((p) => p.stock_actual > 0)
+    } else if (stockView === "bajo") {
       items = items.filter((p) => p.stock_actual <= (p.stock_minimo ?? 5))
     }
+    // "todos": sin filtro de stock.
 
     if (estadoFilter !== "todos") {
       items = items.filter((p) => p.estado_producto === estadoFilter)
@@ -77,13 +91,13 @@ export default function InventarioPage() {
     }
 
     return items
-  }, [query.data, search, stockBajoOnly, estadoFilter, generoFilter, tamanoFilter, presentacionFilter, concentracionFilter])
+  }, [query.data, search, stockView, estadoFilter, generoFilter, tamanoFilter, presentacionFilter, concentracionFilter])
 
-  const hasActiveFilters = search || stockBajoOnly || estadoFilter !== "todos" || generoFilter !== "todos" || tamanoFilter !== "todos" || presentacionFilter !== "todos" || concentracionFilter !== "todos"
+  const hasActiveFilters = search || stockView !== "disponible" || estadoFilter !== "todos" || generoFilter !== "todos" || tamanoFilter !== "todos" || presentacionFilter !== "todos" || concentracionFilter !== "todos"
 
   const clearFilters = () => {
     setSearch("")
-    setStockBajoOnly(false)
+    setStockView("disponible")
     setEstadoFilter("todos")
     setGeneroFilter("todos")
     setTamanoFilter("todos")
@@ -92,7 +106,7 @@ export default function InventarioPage() {
   }
 
   const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-    nuevo: { label: "Nuevo", variant: "default" },
+    nuevo: { label: "Completo", variant: "default" },
     parcial: { label: "Parcial", variant: "secondary" },
     segunda: { label: "Tester", variant: "outline" },
   }
@@ -181,13 +195,26 @@ export default function InventarioPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                variant={stockBajoOnly ? "default" : "outline"}
-                onClick={() => setStockBajoOnly(!stockBajoOnly)}
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Stock bajo
-              </Button>
+              {/* Filtro de stock segmentado: cada opción es clickeable y la activa queda remarcada */}
+              <div className="inline-flex h-10 items-center divide-x divide-input overflow-hidden rounded-md border border-input">
+                {(STOCK_VIEWS.map((view) => {
+                  const active = stockView === view.value
+                  const Icon = view.icon
+                  return (
+                    <Button
+                      key={view.value}
+                      type="button"
+                      variant={active ? "default" : "ghost"}
+                      onClick={() => setStockView(view.value)}
+                      className="h-10 rounded-none border-0 px-3"
+                      title={view.label}
+                    >
+                      <Icon className="mr-1.5 h-4 w-4" />
+                      {view.label}
+                    </Button>
+                  )
+                }))}
+              </div>
               {hasActiveFilters && (
                 <Button variant="ghost" onClick={clearFilters}>
                   <X className="mr-2 h-4 w-4" />

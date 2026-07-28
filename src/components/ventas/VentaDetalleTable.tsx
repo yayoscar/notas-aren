@@ -55,7 +55,7 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove, onU
                   <p className="text-sm font-medium truncate">{d._nombre}</p>
                   {d._estado_producto && d._estado_producto !== "nuevo" && (
                     <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">
-                      {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
+                      {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Tester${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
                     </Badge>
                   )}
                 </div>
@@ -170,7 +170,7 @@ export function VentaDetalleTable({ detalles, tipoVenta, onUpdate, onRemove, onU
                         <p className="text-sm font-medium">{d._nombre}</p>
                         {d._estado_producto && d._estado_producto !== "nuevo" && (
                           <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                            {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Segunda${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
+                            {d._estado_producto === "parcial" ? `Parcial${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}` : `Tester${d._porcentaje_parcial ? ` ${d._porcentaje_parcial}%` : ""}`}
                           </Badge>
                         )}
                       </div>

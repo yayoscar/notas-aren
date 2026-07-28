@@ -301,59 +301,10 @@ export function useVentas() {
         .single()
       if (fetchErr) throw fetchErr
 
-      const oldDetalles = (
-        ventaActual as { ventas_detalle: Array<{ producto_id: string; cantidad: number }> }
-      ).ventas_detalle
-
-      // Calculate stock diffs: revert old, apply new
-      // Build maps: producto_id -> total quantity
-      const oldQtyMap: Record<string, number> = {}
-      for (const d of oldDetalles) {
-        oldQtyMap[d.producto_id] = (oldQtyMap[d.producto_id] || 0) + d.cantidad
-      }
-      const newQtyMap: Record<string, number> = {}
-      for (const d of input.detalles) {
-        newQtyMap[d.producto_id] = (newQtyMap[d.producto_id] || 0) + d.cantidad
-      }
-
-      // All affected product IDs
-      const allProductIds = Array.from(new Set([
-        ...Object.keys(oldQtyMap),
-        ...Object.keys(newQtyMap),
-      ]))
-
-      for (const prodId of allProductIds) {
-        const oldQty = oldQtyMap[prodId] || 0
-        const newQty = newQtyMap[prodId] || 0
-        const diff = newQty - oldQty // positive = need more stock out, negative = return stock
-
-        if (diff !== 0) {
-          const { data: prod } = await supabase
-            .from("productos")
-            .select("stock_actual")
-            .eq("id", prodId)
-            .single()
-          const stockAntes = prod?.stock_actual ?? 0
-
-          await supabase
-            .from("productos")
-            .update({
-              stock_actual: stockAntes - diff,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", prodId)
-
-          await supabase.from("stock_movimientos").insert({
-            producto_id: prodId,
-            tipo: diff > 0 ? "SALIDA_VENTA" : "AJUSTE_POSITIVO",
-            cantidad: Math.abs(diff),
-            stock_antes: stockAntes,
-            stock_despues: stockAntes - diff,
-            referencia_id: input.venta_id,
-            referencia_tipo: "edicion_venta",
-          })
-        }
-      }
+      // El stock lo ajustan los triggers de la base de datos de forma simétrica:
+      // al borrar los detalles viejos, trg_stock_venta_delete repone su cantidad;
+      // al insertar los nuevos, trg_stock_venta la vuelve a descontar. No hay que
+      // tocar stock_actual manualmente aquí (hacerlo causaba doble descuento).
 
       // Delete old detalles (CASCADE clears ventas_detalle_descuento) and insert new ones
       await supabase

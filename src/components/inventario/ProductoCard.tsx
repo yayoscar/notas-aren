@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { formatMoney } from "@/lib/utils"
 
 const ESTADO_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  nuevo: { label: "Nuevo", variant: "default" },
+  nuevo: { label: "Completo", variant: "default" },
   parcial: { label: "Parcial", variant: "secondary" },
   segunda: { label: "Tester", variant: "outline" },
 }

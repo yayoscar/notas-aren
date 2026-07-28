@@ -81,6 +81,9 @@ export default function NuevaEntradaPage() {
       .filter(
         (p) =>
           p.activo &&
+          // Las entradas solo aplican a productos completos (nuevo).
+          // Parciales y testers se crean en su módulo, no vía entradas.
+          p.estado_producto === "nuevo" &&
           (p.nombre.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.marca.toLowerCase().includes(s))
       )
       .slice(0, 10)

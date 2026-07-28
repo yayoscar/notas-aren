@@ -96,7 +96,7 @@ export function ProductoSelector({ tipoVenta, onSelect, excludeIds = [] }: Props
                       )}
                       {p.estado_producto && p.estado_producto !== "nuevo" && (
                         <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                          {p.estado_producto === "parcial" ? "Parcial" : "Segunda"}
+                          {p.estado_producto === "parcial" ? "Parcial" : "Tester"}
                         </Badge>
                       )}
                     </div>

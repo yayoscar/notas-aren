@@ -582,7 +582,7 @@ export function DevolucionUnificadaDialog({
                             {p.nombre}
                             {p.estado_compra !== "nuevo" && (
                               <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0 align-middle">
-                                {p.estado_compra === "parcial" ? "Parcial" : "Segunda"}
+                                {p.estado_compra === "parcial" ? "Parcial" : "Tester"}
                                 {p.porcentaje_compra !== null ? ` ${p.porcentaje_compra}%` : ""}
                               </Badge>
                             )}
