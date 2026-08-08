@@ -79,5 +79,10 @@ export function useCumpleanerosSemanaCount() {
         .map((c) => diasHastaCumple(c.fecha_nacimiento, hoy))
         .filter((dias) => estaEnRango(dias, "semana", hoy)).length
     },
+    // Widget del dashboard: depende de altas y ediciones de clientes hechas en
+    // otra pantalla, y además el resultado caduca con el calendario. Se
+    // recalcula al entrar en lugar de servir la caché de 60 s.
+    staleTime: 0,
+    refetchOnMount: "always",
   })
 }

@@ -18,6 +18,12 @@ export function useMarcas() {
       const unique = Array.from(new Set(data.map((p) => p.marca.trim())))
       return unique.sort((a, b) => a.localeCompare(b, "es"))
     },
+    // Alta o edición de un producto puede estrenar marca. Sus dos consumidores
+    // —la tarjeta "Número de marcas" del dashboard y el datalist de
+    // ProductoForm— necesitan la lista al día al abrirse, y ninguna mutación
+    // invalida esta clave. Es una consulta de una sola columna.
+    staleTime: 0,
+    refetchOnMount: "always",
   })
 
   return query

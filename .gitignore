@@ -43,3 +43,7 @@ next-env.d.ts
 
 # supabase temp
 supabase/.temp/
+supabase/.branches/
+
+# volcados temporales de la base (contienen datos reales de clientes)
+tmp/

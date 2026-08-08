@@ -5,11 +5,13 @@ import JSZip from "jszip"
 import { BACKUP_TABLES } from "@/lib/backup/constants"
 import type { BackupMetadata, BackupPayload } from "@/lib/backup/types"
 import { validateBackupSchema } from "@/lib/backup/validate-schema"
+import {
+  IS_LOCAL_DB,
+  SUPABASE_SERVICE_ROLE_KEY,
+  SUPABASE_URL,
+} from "@/lib/supabase/env.server"
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 // Allow longer execution because restore can take a while with
 // tens of thousands of rows.
@@ -42,6 +44,21 @@ export async function POST(request: Request) {
 
   if (vendedorActual?.rol !== "admin") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
+  }
+
+  // 1b. Guard: una restauración borra y reescribe las 30 tablas. Desde una
+  // máquina de desarrollo eso sólo tiene sentido contra la base local. En el
+  // deploy real NODE_ENV === "production", así que la función legítima sigue
+  // disponible.
+  if (process.env.NODE_ENV !== "production" && !IS_LOCAL_DB) {
+    return NextResponse.json(
+      {
+        error:
+          "Restauración bloqueada: estás en desarrollo apuntando a PRODUCCIÓN. " +
+          "Cambia NEXT_PUBLIC_APP_ENV=local en .env.local y reinicia el servidor.",
+      },
+      { status: 403 }
+    )
   }
 
   // 2. Read the uploaded file

@@ -5,13 +5,11 @@ import { format } from "date-fns"
 import JSZip from "jszip"
 import { BACKUP_TABLES, BACKUP_FORMAT_VERSION } from "@/lib/backup/constants"
 import type { BackupMetadata } from "@/lib/backup/types"
+import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from "@/lib/supabase/env.server"
 
 // Service-role admin client (bypasses RLS — required to read all tables).
 // Mirrors the pattern used by src/app/api/vendedores/route.ts.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 /**
  * POST /api/configuracion/backup

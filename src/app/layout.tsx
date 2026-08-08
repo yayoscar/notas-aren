@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { Toaster } from "sonner"
+import { EnvBanner } from "@/components/layout/EnvBanner"
 
 export const metadata: Metadata = {
   title: "Notas de Aren — Perfumería",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <QueryProvider>
           {children}
+          <EnvBanner />
           <Toaster richColors position="top-center" />
         </QueryProvider>
       </body>

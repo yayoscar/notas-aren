@@ -25,7 +25,10 @@ export default function DashboardPage() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [productosRes, stockBajoRes, lineasCreditoRes] = await Promise.all([
-        supabase.from("productos").select("id, stock_actual, precio_compra, estado_producto", { count: "exact" }).eq("activo", true),
+        // El rango explícito evita el tope de PostgREST (max_rows = 1000):
+        // sin él, el total de unidades y el valor del inventario se
+        // quedarían cortos en cuanto el catálogo pase de mil renglones.
+        supabase.from("productos").select("id, stock_actual, precio_compra, estado_producto", { count: "exact" }).eq("activo", true).range(0, 99999),
         supabase.from("productos").select("id", { count: "exact" }).eq("activo", true).lte("stock_actual", 5),
         supabase.from("lineas_credito").select("saldo_total, saldo_pagado", { count: "exact" }).eq("estado", "activa"),
       ])
@@ -43,12 +46,21 @@ export default function DashboardPage() {
         0
       )
 
-      // Solo productos con stock cuentan para "Total de productos" y su desglose.
-      const conStock = productos.filter((p) => p.stock_actual > 0)
-      const totalProductos = conStock.length
-      const completo = conStock.filter((p) => p.estado_producto === "nuevo").length
-      const parcial = conStock.filter((p) => p.estado_producto === "parcial").length
-      const tester = conStock.filter((p) => p.estado_producto === "segunda").length
+      // "Total de productos" son unidades en existencia, no renglones de
+      // catálogo: se suma stock_actual de todas las marcas y se desglosa por
+      // condición (nuevo = Completo, parcial = Parcial, segunda = Tester).
+      // Los productos sin stock aportan 0, así que no hay que filtrarlos.
+      const unidades = (estado?: string) =>
+        productos.reduce(
+          (sum, p) =>
+            estado && p.estado_producto !== estado ? sum : sum + p.stock_actual,
+          0
+        )
+
+      const totalProductos = unidades()
+      const completo = unidades("nuevo")
+      const parcial = unidades("parcial")
+      const tester = unidades("segunda")
 
       return {
         totalProductos,
@@ -61,6 +73,14 @@ export default function DashboardPage() {
         totalEnCredito,
       }
     },
+    // El dashboard resume productos, stock y créditos, que cambian desde
+    // media docena de pantallas distintas. En lugar de invalidar esta clave
+    // en cada mutación —fácil de olvidar en la próxima—, se recalcula al
+    // entrar: son tres consultas de agregado y se visita de forma puntual.
+    // Sin esto, el staleTime global de 60 s servía datos viejos al volver
+    // desde inventario y sólo se veían tras recargar la página.
+    staleTime: 0,
+    refetchOnMount: "always",
   })
 
   const marcas = useMarcas()
