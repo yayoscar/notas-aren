@@ -15,7 +15,8 @@
     "db:pull-prod": "node --env-file=.env.local scripts/db-pull-prod.mjs",
     "db:load-backup": "node --env-file=.env.local scripts/db-load-backup.mjs",
     "db:check-drift": "node --env-file=.env.local scripts/db-check-drift.mjs",
-    "db:pending-prod": "node --env-file=.env.local -e \"const{execFileSync}=require('child_process');execFileSync('npx',['supabase','db','push','--db-url',process.env.PROD_DB_URL,'--dry-run'],{stdio:'inherit'})\""
+    "db:pending-prod": "node --env-file=.env.local -e \"const{execFileSync}=require('child_process');execFileSync('npx',['supabase','db','push','--db-url',process.env.PROD_DB_URL,'--dry-run'],{stdio:'inherit'})\"",
+    "db:push-prod": "node --env-file=.env.local -e \"const{execFileSync}=require('child_process');execFileSync('npx',['supabase','db','push','--db-url',process.env.PROD_DB_URL],{stdio:'inherit'})\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
