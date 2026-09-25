@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { useEntrada } from "@/hooks/useEntradas"
+import { useParams, useRouter } from "next/navigation"
+import { useEntrada, useEntradas } from "@/hooks/useEntradas"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog"
+import { Pencil, Trash2 } from "lucide-react"
 import { formatMoney, formatDate } from "@/lib/utils"
 
 function DetailRow({
@@ -33,8 +36,11 @@ function DetailRow({
 
 export default function EntradaDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
   const { data: entrada, isLoading } = useEntrada(id)
+  const { remove } = useEntradas()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -51,11 +57,28 @@ export default function EntradaDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild>
           <Link href="/entradas">← Entradas</Link>
         </Button>
         <h1 className="text-2xl font-bold">{entrada.folio}</h1>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/entradas/${id}/editar`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            disabled={remove.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -158,6 +181,20 @@ export default function EntradaDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          remove.mutate(id, {
+            onSuccess: () => router.push("/entradas"),
+            onSettled: () => setDeleteDialogOpen(false),
+          })
+        }}
+        isPending={remove.isPending}
+        title={`¿Eliminar la entrada ${entrada.folio}?`}
+        description="Se descontará del inventario todo lo que esta entrada sumó. Si alguna de esas piezas ya se vendió o se derivó, la eliminación se bloqueará. Los precios de venta del producto no se revierten. Esta acción no se puede deshacer."
+      />
     </div>
   )
 }

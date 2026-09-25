@@ -285,14 +285,16 @@ export default function ClienteDetailPage() {
                           </span>
                           <span className="font-mono tabular-nums">{formatMoney(Number(v.total))}</span>
                         </div>
-                        {v.tipo_venta === "credito" && v.saldo_restante > 0 && (
+                        {v.tipo_venta === "credito" && (
                           <div className="flex items-center justify-between mt-2">
-                            <Badge variant={v.estado_credito === "liquidado" ? "secondary" : "destructive"}>
-                              {v.estado_credito === "activo" ? "Crédito activo" : "Pagado"}
+                            <Badge variant={v.credito_saldado ? "secondary" : "destructive"}>
+                              {v.credito_saldado ? "Pagado" : "Crédito activo"}
                             </Badge>
-                            <span className="text-xs text-orange-600">
-                              Pendiente: {formatMoney(v.saldo_restante)}
-                            </span>
+                            {v.saldo_restante > 0 && (
+                              <span className="text-xs text-orange-600">
+                                Pendiente: {formatMoney(v.saldo_restante)}
+                              </span>
+                            )}
                           </div>
                         )}
                       </Link>
@@ -329,8 +331,8 @@ export default function ClienteDetailPage() {
                             <TableCell className="text-right">{formatMoney(Number(v.total))}</TableCell>
                             <TableCell>
                               {v.tipo_venta === "credito" ? (
-                                <Badge variant={v.estado_credito === "liquidado" ? "secondary" : "destructive"}>
-                                  {v.estado_credito === "activo" ? "Crédito activo" : "Pagado"}
+                                <Badge variant={v.credito_saldado ? "secondary" : "destructive"}>
+                                  {v.credito_saldado ? "Pagado" : "Crédito activo"}
                                 </Badge>
                               ) : (
                                 <Badge variant="secondary">Pagada</Badge>

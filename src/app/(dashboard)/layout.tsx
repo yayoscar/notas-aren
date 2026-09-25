@@ -11,7 +11,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { vendedor, isAdmin, isLoading } = useVendedorActual()
+  const { vendedor, isAdmin, isActivo, isLoading } = useVendedorActual()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -22,7 +22,16 @@ export default function DashboardLayout({
   }, [pathname])
 
   useEffect(() => {
-    if (isLoading || !vendedor) return
+    if (isLoading) return
+
+    // Sin perfil de vendedor no hay acceso. Antes esto era un `return` que
+    // dejaba al usuario dentro del dashboard: un usuario de acceso huérfano
+    // —el que queda si al eliminar un vendedor falla el segundo paso— se
+    // quedaba navegando con la sesión abierta.
+    if (!vendedor || !isActivo) {
+      router.push("/login")
+      return
+    }
 
     // Force password change
     if (vendedor.debe_cambiar_password) {
@@ -39,7 +48,7 @@ export default function DashboardLayout({
     ) {
       router.push("/clientes")
     }
-  }, [vendedor, isAdmin, isLoading, pathname, router])
+  }, [vendedor, isAdmin, isActivo, isLoading, pathname, router])
 
   return (
     <div className="flex min-h-screen bg-background">

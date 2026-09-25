@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -17,6 +17,26 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
+  // El middleware manda aquí a quien pierde el acceso con la sesión abierta.
+  // La sesión sigue siendo válida en el navegador, así que hay que cerrarla:
+  // si no, cualquier navegación volvería a rebotar contra el mismo muro.
+  //
+  // El parámetro se lee de window y no con useSearchParams a propósito: esta
+  // página se prerenderiza en el build, y useSearchParams la obligaría a
+  // envolverse en un <Suspense> (missing-suspense-with-csr-bailout).
+  useEffect(() => {
+    const motivo = new URLSearchParams(window.location.search).get("motivo")
+    if (!motivo) return
+    supabase.auth.signOut()
+    toast.error(
+      motivo === "desactivado"
+        ? "Tu cuenta está desactivada. Habla con un administrador."
+        : "Tu usuario ya no tiene un perfil de vendedor."
+    )
+    router.replace("/login")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -29,21 +49,44 @@ export default function LoginPage() {
     })
 
     if (error) {
-      toast.error("Credenciales inválidas")
+      // Al desactivar un vendedor se inhabilita también su usuario de acceso,
+      // así que el proveedor de identidad rechaza el intento antes que nosotros.
+      // Merece un mensaje propio: no es que se haya equivocado de contraseña.
+      const baneado =
+        error.code === "user_banned" ||
+        error.message.toLowerCase().includes("banned")
+      toast.error(
+        baneado
+          ? "Tu cuenta está desactivada. Habla con un administrador."
+          : "Credenciales inválidas"
+      )
       setLoading(false)
       return
     }
 
-    // Check if user must change password
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: vendedor } = await supabase
         .from("vendedores")
-        .select("debe_cambiar_password")
+        .select("debe_cambiar_password, activo")
         .eq("auth_user_id", user.id)
         .maybeSingle()
 
-      if (vendedor?.debe_cambiar_password) {
+      // Segunda capa: cubre el caso en que la columna esté en false pero el
+      // usuario de acceso no llegara a inhabilitarse, y el del usuario que
+      // quedó sin perfil.
+      if (!vendedor || !vendedor.activo) {
+        await supabase.auth.signOut()
+        toast.error(
+          vendedor
+            ? "Tu cuenta está desactivada. Habla con un administrador."
+            : "Tu usuario ya no tiene un perfil de vendedor."
+        )
+        setLoading(false)
+        return
+      }
+
+      if (vendedor.debe_cambiar_password) {
         toast.success("Sesión iniciada — debes cambiar tu contraseña")
         router.push("/cambiar-password")
         router.refresh()

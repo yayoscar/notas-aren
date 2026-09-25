@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/supabase/require-admin"
 import { NextResponse } from "next/server"
 import JSZip from "jszip"
 import { BACKUP_TABLES } from "@/lib/backup/constants"
@@ -26,25 +26,10 @@ export const maxDuration = 300
  * Admin only.
  */
 export async function POST(request: Request) {
-  const serverSupabase = createServerClient()
 
   // 1. Auth check
-  const {
-    data: { user },
-  } = await serverSupabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-  }
-
-  const { data: vendedorActual } = await serverSupabase
-    .from("vendedores")
-    .select("rol")
-    .eq("auth_user_id", user.id)
-    .single()
-
-  if (vendedorActual?.rol !== "admin") {
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
-  }
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
 
   // 1b. Guard: una restauración borra y reescribe las 30 tablas. Desde una
   // máquina de desarrollo eso sólo tiene sentido contra la base local. En el

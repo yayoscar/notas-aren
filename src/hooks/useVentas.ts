@@ -408,6 +408,12 @@ export type VentaHistorialCliente = Venta & {
   ventas_detalle: (VentaDetalle & { productos: { nombre: string } | null })[]
   total_abonado: number
   saldo_restante: number
+  /**
+   * Si el crédito de esta venta está saldado. Viene de la vista, no de la
+   * columna `estado_credito`: la columna se sincroniza sola, pero la vista es
+   * la que manda y no depende de que el trigger haya corrido.
+   */
+  credito_saldado: boolean
 }
 
 export function useVentasCliente(clienteId: string) {
@@ -425,41 +431,47 @@ export function useVentasCliente(clienteId: string) {
         .order("fecha", { ascending: false })
       if (ventasError) throw ventasError
 
-      // Obtener pagos para ventas de crédito
-      const creditoIds = (ventas ?? [])
-        .filter((v) => v.tipo_venta === "credito")
-        .map((v) => v.id)
+      // El saldo de una venta a crédito NO es `total - SUM(pagos de esa venta)`:
+      // desde que el crédito vive en lineas_credito, los abonos se registran
+      // contra la línea del cliente y `pagos.venta_id` viene nulo en todo lo
+      // cobrado desde Cobranza. Restar sólo los pagos atados a la venta dejaba
+      // el historial mostrando "Crédito activo" sobre créditos ya liquidados.
+      //
+      // El reparto vive en v_venta_credito_saldo, que es también lo que usa el
+      // trigger que sincroniza estado_credito. Calcularlo aquí otra vez sería
+      // repetir el error.
+      const { data: saldos, error: saldosError } = await supabase
+        .from("v_venta_credito_saldo")
+        .select("venta_id, imputado, saldada, saldo_pendiente")
+        .eq("cliente_id", clienteId)
+      if (saldosError) throw saldosError
 
-      let pagosPorVenta: Record<string, number> = {}
-
-      if (creditoIds.length > 0) {
-        const { data: pagos, error: pagosError } = await supabase
-          .from("pagos")
-          .select("venta_id, monto")
-          .in("venta_id", creditoIds)
-        if (pagosError) throw pagosError
-
-        pagosPorVenta = (pagos ?? []).reduce(
-          (acc, p) => {
-            acc[p.venta_id] = (acc[p.venta_id] || 0) + p.monto
-            return acc
-          },
-          {} as Record<string, number>
-        )
-      }
+      const saldoPorVenta = new Map(
+        (saldos ?? []).map((s) => [s.venta_id as string, s])
+      )
 
       return (ventas ?? []).map((v) => {
-        const isCredito = v.tipo_venta === "credito"
-        const totalAbonado = isCredito
-          ? pagosPorVenta[v.id] || 0
-          : v.total
+        if (v.tipo_venta !== "credito") {
+          return {
+            ...v,
+            total_abonado: v.total,
+            saldo_restante: 0,
+            credito_saldado: true,
+          } as VentaHistorialCliente
+        }
+
+        // Una venta cancelada queda fuera de la vista: no consume abonos.
+        const s = saldoPorVenta.get(v.id as string)
+
         return {
           ...v,
-          total_abonado: totalAbonado,
-          saldo_restante: v.total - totalAbonado,
+          total_abonado: Number(s?.imputado ?? 0),
+          saldo_restante: Number(s?.saldo_pendiente ?? 0),
+          credito_saldado: s ? Boolean(s.saldada) : true,
         } as VentaHistorialCliente
       })
     },
     enabled: !!clienteId,
   })
 }
+

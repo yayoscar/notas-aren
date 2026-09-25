@@ -9,11 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search } from "lucide-react"
+import { EliminarVendedorDialog } from "@/components/vendedores/EliminarVendedorDialog"
+import { useVendedorActual } from "@/hooks/useVendedorActual"
+import { Plus, Search, Ban, RotateCcw, Trash2 } from "lucide-react"
+
+type VendedorObjetivo = { id: string; nombre: string }
 
 export default function VendedoresPage() {
-  const { query } = useVendedores()
+  const { query, setActivo, remove } = useVendedores()
+  const { vendedor: yo } = useVendedorActual()
   const [search, setSearch] = useState("")
+  const [porEliminar, setPorEliminar] = useState<VendedorObjetivo | null>(null)
 
   const filtered = useMemo(() => {
     if (!query.data) return []
@@ -67,29 +73,41 @@ export default function VendedoresPage() {
               {/* Mobile cards */}
               <div className="space-y-2 md:hidden">
                 {filtered.map((v) => (
-                  <Link
-                    key={v.id}
-                    href={`/vendedores/${v.id}`}
-                    className="block rounded-lg border p-3 transition-colors hover:bg-accent/50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{v.nombre}</span>
-                      <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
-                        {v.rol === "admin" ? "Administrador" : "Vendedor"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-muted-foreground">{v.telefono}</span>
-                      <Badge variant={v.activo ? "default" : "secondary"}>
-                        {v.activo ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </div>
-                    {v.usuario && (
-                      <div className="mt-1">
-                        <span className="text-xs text-muted-foreground font-mono">{v.usuario}</span>
+                  <div key={v.id} className="rounded-lg border p-3">
+                    <Link
+                      href={`/vendedores/${v.id}`}
+                      className="block transition-opacity hover:opacity-80"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{v.nombre}</span>
+                        <Badge variant={v.rol === "admin" ? "default" : "secondary"}>
+                          {v.rol === "admin" ? "Administrador" : "Vendedor"}
+                        </Badge>
                       </div>
-                    )}
-                  </Link>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-muted-foreground">{v.telefono}</span>
+                        <Badge variant={v.activo ? "default" : "secondary"}>
+                          {v.activo ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </div>
+                      {v.usuario && (
+                        <div className="mt-1">
+                          <span className="text-xs text-muted-foreground font-mono">{v.usuario}</span>
+                        </div>
+                      )}
+                    </Link>
+                    <div className="mt-2 flex justify-end gap-1 border-t pt-2">
+                      <AccionesVendedor
+                        vendedor={v}
+                        esYo={yo?.id === v.id}
+                        isPending={setActivo.isPending}
+                        onToggleActivo={() =>
+                          setActivo.mutate({ id: v.id, activo: !v.activo })
+                        }
+                        onEliminar={() => setPorEliminar({ id: v.id, nombre: v.nombre })}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
 
@@ -103,6 +121,7 @@ export default function VendedoresPage() {
                       <TableHead>Teléfono</TableHead>
                       <TableHead>Rol</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead className="w-32" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -125,6 +144,21 @@ export default function VendedoresPage() {
                             {v.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <AccionesVendedor
+                              vendedor={v}
+                              esYo={yo?.id === v.id}
+                              isPending={setActivo.isPending}
+                              onToggleActivo={() =>
+                                setActivo.mutate({ id: v.id, activo: !v.activo })
+                              }
+                              onEliminar={() =>
+                                setPorEliminar({ id: v.id, nombre: v.nombre })
+                              }
+                            />
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -134,6 +168,86 @@ export default function VendedoresPage() {
           )}
         </CardContent>
       </Card>
+
+      <EliminarVendedorDialog
+        vendedorId={porEliminar?.id ?? null}
+        vendedorNombre={porEliminar?.nombre ?? ""}
+        open={porEliminar !== null}
+        onOpenChange={(open) => !open && setPorEliminar(null)}
+        isPending={remove.isPending || setActivo.isPending}
+        onConfirmarEliminar={() => {
+          if (!porEliminar) return
+          remove.mutate(porEliminar.id, { onSettled: () => setPorEliminar(null) })
+        }}
+        onDesactivarEnSuLugar={() => {
+          if (!porEliminar) return
+          setActivo.mutate(
+            { id: porEliminar.id, activo: false },
+            { onSettled: () => setPorEliminar(null) }
+          )
+        }}
+      />
     </div>
+  )
+}
+
+/**
+ * Desactivar / reactivar y eliminar. Mismo planteamiento que el catálogo de
+ * tipos de descuento: cuando el registro está activo la acción es darlo de
+ * baja, y cuando está inactivo es reactivarlo.
+ *
+ * Un administrador no puede darse de baja ni eliminarse a sí mismo, así que
+ * sobre su propia fila no se ofrecen las acciones.
+ */
+function AccionesVendedor({
+  vendedor,
+  esYo,
+  isPending,
+  onToggleActivo,
+  onEliminar,
+}: {
+  vendedor: { id: string; activo: boolean }
+  esYo: boolean
+  isPending: boolean
+  onToggleActivo: () => void
+  onEliminar: () => void
+}) {
+  if (esYo) {
+    return <span className="text-xs text-muted-foreground">Tú</span>
+  }
+
+  return (
+    <>
+      {vendedor.activo ? (
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Desactivar"
+          disabled={isPending}
+          onClick={onToggleActivo}
+        >
+          <Ban className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Reactivar"
+          disabled={isPending}
+          onClick={onToggleActivo}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      )}
+      <Button
+        size="icon"
+        variant="ghost"
+        className="text-destructive hover:text-destructive"
+        title="Eliminar definitivamente"
+        onClick={onEliminar}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </>
   )
 }

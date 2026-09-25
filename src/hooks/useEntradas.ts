@@ -30,6 +30,16 @@ interface EntradaDetalleInput {
   precio_unitario: number
 }
 
+interface ActualizarEntradaInput {
+  id: string
+  proveedor_id: string
+  fecha: string
+  fecha_factura?: string | null
+  numero_factura?: string | null
+  notas?: string | null
+  detalles: EntradaDetalleInput[]
+}
+
 interface CrearEntradaInput {
   proveedor_id: string
   fecha: string
@@ -98,7 +108,60 @@ export function useEntradas() {
     onError: () => toast.error("Error al registrar entrada"),
   })
 
-  return { query, create }
+  // Editar y eliminar viven en funciones de Postgres, no aquí: la comprobación
+  // de existencias y la mutación del stock tienen que ocurrir en la misma
+  // transacción. Ver supabase/migrations/20260925000004_entrada_eliminar_actualizar.sql
+  const update = useMutation({
+    mutationFn: async (input: ActualizarEntradaInput) => {
+      const { id, detalles, ...entradaData } = input
+
+      const { data, error } = await supabase.rpc("fn_actualizar_entrada", {
+        p_entrada_id: id,
+        p_proveedor_id: entradaData.proveedor_id,
+        p_fecha: localDateToISO(entradaData.fecha),
+        p_fecha_factura: entradaData.fecha_factura
+          ? localDateToISO(entradaData.fecha_factura)
+          : null,
+        p_numero_factura: entradaData.numero_factura || null,
+        p_notas: entradaData.notas || null,
+        p_detalles: detalles,
+      })
+      if (error) throw new Error(error.message)
+      return data
+    },
+    onSuccess: (_data, variables) => {
+      invalidarEntrada(variables.id)
+      toast.success("Entrada actualizada")
+    },
+    // El mensaje viene de la base y nombra el producto y las piezas que faltan.
+    // Sustituirlo por un texto genérico dejaría al usuario sin saber qué corregir.
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("fn_eliminar_entrada", {
+        p_entrada_id: id,
+      })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_data, id) => {
+      invalidarEntrada(id)
+      toast.success("Entrada eliminada")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  function invalidarEntrada(id: string) {
+    queryClient.invalidateQueries({ queryKey: ["entradas"] })
+    queryClient.invalidateQueries({ queryKey: ["entradas", id] })
+    // El stock y sus movimientos los mueven los triggers, así que la caché
+    // local de productos queda obsoleta en cuanto se edita o se borra.
+    queryClient.invalidateQueries({ queryKey: ["productos"] })
+    queryClient.invalidateQueries({ queryKey: ["stock_movimientos"] })
+  }
+
+  return { query, create, update, remove }
 }
 
 export function useEntrada(id: string) {

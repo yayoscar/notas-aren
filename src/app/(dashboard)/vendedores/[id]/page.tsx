@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { EliminarVendedorDialog } from "@/components/vendedores/EliminarVendedorDialog"
+import { useVendedorActual } from "@/hooks/useVendedorActual"
+import { Ban, RotateCcw, Trash2 } from "lucide-react"
 
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -28,8 +31,10 @@ export default function VendedorDetailPage() {
   const router = useRouter()
   const id = params.id as string
   const vendedorQuery = useVendedor(id)
-  const { update, resetPassword } = useVendedores()
+  const { update, resetPassword, setActivo, remove } = useVendedores()
+  const { vendedor: yo } = useVendedorActual()
   const [newPassword, setNewPassword] = useState("")
+  const [dialogoEliminar, setDialogoEliminar] = useState(false)
 
   function handleSubmit(values: VendedorEditFormValues) {
     update.mutate({ id, ...values }, {
@@ -72,6 +77,39 @@ export default function VendedorDetailPage() {
             {v.activo ? "Activo" : "Inactivo"}
           </Badge>
         </div>
+
+        {/* Un administrador no puede darse de baja ni eliminarse a sí mismo. */}
+        {yo?.id !== v.id && (
+          <div className="flex flex-wrap gap-2 sm:ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={setActivo.isPending}
+              onClick={() => setActivo.mutate({ id, activo: !v.activo })}
+            >
+              {v.activo ? (
+                <>
+                  <Ban className="mr-2 h-4 w-4" />
+                  Desactivar
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Reactivar
+                </>
+              )}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={remove.isPending}
+              onClick={() => setDialogoEliminar(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </Button>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="detalle">
@@ -141,6 +179,26 @@ export default function VendedorDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <EliminarVendedorDialog
+        vendedorId={id}
+        vendedorNombre={v.nombre}
+        open={dialogoEliminar}
+        onOpenChange={setDialogoEliminar}
+        isPending={remove.isPending || setActivo.isPending}
+        onConfirmarEliminar={() => {
+          remove.mutate(id, {
+            onSuccess: () => router.push("/vendedores"),
+            onSettled: () => setDialogoEliminar(false),
+          })
+        }}
+        onDesactivarEnSuLugar={() => {
+          setActivo.mutate(
+            { id, activo: false },
+            { onSettled: () => setDialogoEliminar(false) }
+          )
+        }}
+      />
     </div>
   )
 }

@@ -26,6 +26,9 @@ export function useVendedorActual() {
   return {
     vendedor: query.data ?? null,
     isAdmin: query.data?.rol === "admin",
+    // Un perfil inexistente cuenta como inactivo: quien no tiene perfil no
+    // tiene acceso.
+    isActivo: query.data?.activo === true,
     isLoading: query.isLoading,
   }
 }

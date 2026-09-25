@@ -1,28 +1,13 @@
 import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL } from "@/lib/supabase/env.server"
+import { requireAdmin } from "@/lib/supabase/require-admin"
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 export async function POST(request: Request) {
-  const serverSupabase = createServerClient()
-
-  // Verify caller is admin
-  const { data: { user } } = await serverSupabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-  }
-
-  const { data: vendedorActual } = await serverSupabase
-    .from("vendedores")
-    .select("rol")
-    .eq("auth_user_id", user.id)
-    .single()
-
-  if (vendedorActual?.rol !== "admin") {
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
-  }
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
 
   const body = await request.json()
   const { nombre, telefono, usuario, rol, password } = body

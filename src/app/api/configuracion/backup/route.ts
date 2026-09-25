@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/supabase/require-admin"
 import { NextResponse } from "next/server"
 import { format } from "date-fns"
 import JSZip from "jszip"
@@ -19,25 +19,10 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
  * vendedores. Returns the ZIP as a binary download.
  */
 export async function POST() {
-  const serverSupabase = createServerClient()
 
   // 1. Auth check — must be a logged-in admin.
-  const {
-    data: { user },
-  } = await serverSupabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-  }
-
-  const { data: vendedorActual } = await serverSupabase
-    .from("vendedores")
-    .select("rol")
-    .eq("auth_user_id", user.id)
-    .single()
-
-  if (vendedorActual?.rol !== "admin") {
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
-  }
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
 
   // 2. Dump all tables using service role (bypasses RLS).
   // Use a high range to fetch all rows in one call. Supabase default
