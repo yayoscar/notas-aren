@@ -103,6 +103,7 @@ export default function CreditoDetallePage() {
     periodicidad: linea.periodicidad,
     fecha_inicio: linea.fecha_inicio,
     fecha_siguiente_pago: linea.fecha_siguiente_pago,
+    sin_fecha_pago: !(linea.fecha_siguiente_pago),
     fecha_cobro_especifica: null,
     estado: linea.estado,
     created_at: linea.created_at ?? "",

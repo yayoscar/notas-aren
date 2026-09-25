@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { Pago } from "@/lib/supabase/types"
 import { toast } from "sonner"
 import { localDateToISO } from "@/lib/utils"
+import { avanzarCalendarioPagos } from "@/lib/calculos/calendario-pagos"
 
 export type CreditoConSaldo = {
   id: string
@@ -125,7 +126,7 @@ export function useCrearAbono() {
       // 2. Actualizar saldo_pagado en la línea de crédito
       const { data: linea, error: lineaFetchError } = await supabase
         .from("lineas_credito")
-        .select("saldo_total, saldo_pagado")
+        .select("saldo_total, saldo_pagado, meses_credito, periodicidad, fecha_siguiente_pago")
         .eq("id", input.linea_credito_id)
         .single()
       if (lineaFetchError) throw lineaFetchError
@@ -138,8 +139,34 @@ export function useCrearAbono() {
       }
 
       // 3. Si ya se cubrió el saldo total, marcar como liquidada
-      if (nuevoSaldoPagado >= linea.saldo_total) {
+      const quedaLiquidada = nuevoSaldoPagado >= linea.saldo_total
+      if (quedaLiquidada) {
         updatePayload.estado = "liquidada"
+      }
+
+      // 4. Adelantar el calendario de pagos.
+      //
+      // Hasta ahora nadie lo hacía: la fecha se quedaba clavada en la del
+      // primer pago hasta que alguien ajustaba el plan a mano, así que la
+      // agenda de cobro no se mantenía sola.
+      //
+      // Esto vive aquí y no en un trigger a propósito. Hay otros dos caminos
+      // que insertan en `pagos` y ninguno debe mover el calendario:
+      // `useVentas.create` registra el enganche, que ES el primer pago del
+      // plan, y `useImportacion` carga historial cuyo plan ya viene con su
+      // fecha. Un trigger no puede distinguirlos sin una señal artificial.
+      // Si aparece un cuarto camino de abono, tendrá que adelantar aquí.
+      const nuevaFechaPago = avanzarCalendarioPagos({
+        saldoAntes: linea.saldo_total - (linea.saldo_pagado ?? 0),
+        montoAbono: input.monto,
+        mesesCredito: linea.meses_credito ?? 2,
+        periodicidad: linea.periodicidad,
+        fechaProgramada: linea.fecha_siguiente_pago,
+        fechaAbono: input.fecha ?? new Date().toISOString().slice(0, 10),
+        quedaLiquidada,
+      })
+      if (nuevaFechaPago) {
+        updatePayload.fecha_siguiente_pago = nuevaFechaPago
       }
 
       const { error: updateError } = await supabase

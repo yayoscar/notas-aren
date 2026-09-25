@@ -387,6 +387,7 @@ export function DevolucionUnificadaDialog({
       periodicidad: lineaActiva.periodicidad,
       fecha_inicio: lineaActiva.fecha_inicio ?? "",
       fecha_siguiente_pago: lineaActiva.fecha_siguiente_pago ?? null,
+      sin_fecha_pago: !(lineaActiva.fecha_siguiente_pago ?? null),
       fecha_cobro_especifica: null,
       estado: lineaActiva.estado ?? "activa",
       created_at: lineaActiva.created_at ?? "",

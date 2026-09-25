@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -69,30 +69,42 @@ export default function SeguimientoCobranzaPage() {
 
   const vendedores = vendedoresQuery.data?.filter((v) => v.activo) ?? []
 
-  const filtered = useMemo(() => {
-    if (!creditos) return []
-    let list = creditos
-    if (vendedorFilter !== "todos") {
-      list = list.filter((c) => c.vendedor_id === vendedorFilter)
-    }
-    if (estadoFilter === "al_dia") {
-      list = list.filter((c) => c.estado_periodo === "al_dia")
-    } else if (estadoFilter === "pendientes") {
-      list = list.filter((c) => c.estado_periodo !== "al_dia")
-    }
-    return list
-  }, [creditos, vendedorFilter, estadoFilter])
+  // El hook devuelve dos listas: la ruta de cobro del periodo y lo que se debe
+  // pero todavía no vence. Se consumen por separado a propósito — ver
+  // CobranzaPorPeriodo en useCobranza.ts.
+  const deCobro = useMemo(() => creditos?.deCobro ?? [], [creditos])
+  const noVencen = useMemo(() => creditos?.noVencen ?? [], [creditos])
+
+  // El filtro por vendedor es global: si estás viendo la cartera de alguien,
+  // la ves entera. El filtro por estado, en cambio, habla del periodo, así que
+  // no tiene sentido sobre lo que aún no vence.
+  const porVendedor = useCallback(
+    (lista: CreditoCobranza[]) =>
+      vendedorFilter === "todos"
+        ? lista
+        : lista.filter((c) => c.vendedor_id === vendedorFilter),
+    [vendedorFilter]
+  )
 
   // Counts use vendedor-filtered data (before estado filter) so cards always show totals
-  const vendedorFiltered = useMemo(() => {
-    if (!creditos) return []
-    if (vendedorFilter === "todos") return creditos
-    return creditos.filter((c) => c.vendedor_id === vendedorFilter)
-  }, [creditos, vendedorFilter])
+  const vendedorFiltered = useMemo(() => porVendedor(deCobro), [porVendedor, deCobro])
+
+  const filtered = useMemo(() => {
+    if (estadoFilter === "al_dia") {
+      return vendedorFiltered.filter((c) => c.estado_periodo === "al_dia")
+    }
+    if (estadoFilter === "pendientes") {
+      return vendedorFiltered.filter((c) => c.estado_periodo !== "al_dia")
+    }
+    return vendedorFiltered
+  }, [vendedorFiltered, estadoFilter])
+
+  const noVencenFiltrados = useMemo(() => porVendedor(noVencen), [porVendedor, noVencen])
 
   const totalPendiente = vendedorFiltered.reduce((s, c) => s + c.saldo_pendiente, 0)
   const alDiaCount = vendedorFiltered.filter((c) => c.estado_periodo === "al_dia").length
   const pendienteCount = vendedorFiltered.filter((c) => c.estado_periodo !== "al_dia").length
+  const totalNoVencen = noVencenFiltrados.reduce((s, c) => s + c.saldo_pendiente, 0)
 
   function buildWhatsAppUrl(c: CreditoCobranza): string {
     const tel = limpiarTelefono(c.clientes?.telefono ?? null)
@@ -231,6 +243,18 @@ export default function SeguimientoCobranzaPage() {
         </Card>
       </div>
 
+      {/* El total de arriba es el del periodo. Si hay saldo que todavía no
+          vence, tiene que verse: entre las dos cifras está todo lo que se debe. */}
+      {totalNoVencen > 0 && (
+        <p className="text-center text-xs text-muted-foreground">
+          Además hay{" "}
+          <span className="font-mono font-medium text-foreground">
+            {formatMoney(totalNoVencen)}
+          </span>{" "}
+          pendiente que aún no vence en este periodo
+        </p>
+      )}
+
       {/* List */}
       {isLoading ? (
         <div className="space-y-2">
@@ -239,7 +263,7 @@ export default function SeguimientoCobranzaPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No hay créditos pendientes para este periodo
+            Nada que cobrar en este periodo
           </CardContent>
         </Card>
       ) : (
@@ -265,7 +289,11 @@ export default function SeguimientoCobranzaPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Sig. pago: </span>
-                    <span>{fmtFecha(c.fecha_siguiente_pago)}</span>
+                    {c.sin_fecha_pago ? (
+                      <span className="font-medium text-amber-600">Sin fecha</span>
+                    ) : (
+                      <span>{fmtFecha(c.fecha_siguiente_pago)}</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground">Último: </span>
@@ -318,7 +346,13 @@ export default function SeguimientoCobranzaPage() {
                         <TableCell className="text-muted-foreground">{c.clientes?.telefono ?? "—"}</TableCell>
                         <TableCell className="text-right font-mono font-medium text-orange-600">{formatMoney(c.saldo_pendiente)}</TableCell>
                         <TableCell className="text-right font-mono">{formatMoney(c.cuota_programada)}</TableCell>
-                        <TableCell>{fmtFecha(c.fecha_siguiente_pago)}</TableCell>
+                        <TableCell>
+                          {c.sin_fecha_pago ? (
+                            <span className="font-medium text-amber-600">Sin fecha</span>
+                          ) : (
+                            fmtFecha(c.fecha_siguiente_pago)
+                          )}
+                        </TableCell>
                         <TableCell>
                           {c.ultimo_pago_fecha ? (
                             <span className="text-xs">
@@ -351,6 +385,48 @@ export default function SeguimientoCobranzaPage() {
             </Card>
           </div>
         </>
+      )}
+
+      {/* Créditos que se adeudan pero cuyo próximo pago cae después del periodo.
+          Van debajo y separados: la lista de arriba sigue siendo la ruta de
+          cobro y manda. Esto está aquí para que ningún saldo quede invisible,
+          que es lo que pasaba antes. */}
+      {!isLoading && noVencenFiltrados.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              No vencen en este periodo ({noVencenFiltrados.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {noVencenFiltrados.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                >
+                  <Link
+                    href={`/clientes/${c.cliente_id}/credito/${c.id}`}
+                    className="text-sm font-medium hover:underline"
+                  >
+                    {c.clientes?.nombre ?? "—"}
+                  </Link>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-muted-foreground">
+                      Sig. pago:{" "}
+                      <span className="text-foreground">
+                        {fmtFecha(c.fecha_siguiente_pago)}
+                      </span>
+                    </span>
+                    <span className="font-mono font-bold text-orange-600">
+                      {formatMoney(c.saldo_pendiente)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Abono dialog */}

@@ -90,14 +90,22 @@ export function useAjustarPlanPagos() {
       linea_credito_id: string
       meses_credito: number
       periodicidad: string
-      fecha_siguiente_pago: string
+      /**
+       * Opcional. Sólo se escribe cuando el usuario eligió una fecha concreta,
+       * como en AjustePlanDialog. Quien ajusta plazo o cuota sin tocar la fecha
+       * la omite: mandarla sin más revertiría el avance que el abono acaba de
+       * hacer sobre el calendario.
+       */
+      fecha_siguiente_pago?: string
     }) => {
       const { data, error } = await supabase
         .from("lineas_credito")
         .update({
           meses_credito: input.meses_credito,
           periodicidad: input.periodicidad,
-          fecha_siguiente_pago: localDateToISO(input.fecha_siguiente_pago),
+          ...(input.fecha_siguiente_pago
+            ? { fecha_siguiente_pago: localDateToISO(input.fecha_siguiente_pago) }
+            : {}),
           updated_at: new Date().toISOString(),
         })
         .eq("id", input.linea_credito_id)

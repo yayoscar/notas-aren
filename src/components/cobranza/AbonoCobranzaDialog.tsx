@@ -143,13 +143,16 @@ export function AbonoCobranzaDialog({ credito, open, onOpenChange }: Props) {
       {
         onSuccess: async () => {
           // Apply plan adjustment if needed (not for "adelanto")
-          if (paso === "ajuste" && opcionAjuste !== "adelanto" && ajustePreview && credito.fecha_siguiente_pago) {
+          // Este paso ajusta plazo o cuota, nunca la fecha: aquí no hay ningún
+          // selector de fecha de próximo pago. Se omite a propósito, porque
+          // corre DESPUÉS del abono y reenviar la fecha vieja —como se hacía—
+          // revertiría el avance del calendario que el abono acaba de aplicar.
+          if (paso === "ajuste" && opcionAjuste !== "adelanto" && ajustePreview) {
             const opcion = opcionAjuste === "reducir_periodos" ? ajustePreview.opcionA : ajustePreview.opcionB
             ajustarPlan.mutate({
               linea_credito_id: credito.id,
               meses_credito: opcion.meses,
               periodicidad: credito.periodicidad,
-              fecha_siguiente_pago: credito.fecha_siguiente_pago,
             })
           }
 

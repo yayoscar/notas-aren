@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { localDateToISO } from "@/lib/utils"
+import { clasificarCreditoEnPeriodo } from "@/lib/calculos/calendario-pagos"
 import {
   startOfWeek,
   endOfWeek,
@@ -45,6 +46,28 @@ export type CreditoCobranza = {
   ultimo_pago_monto: number | null
   cuota_programada: number
   estado_periodo: "al_dia" | "atrasado" | "sin_abonos"
+  /**
+   * La línea no tiene fecha de próximo pago. No se puede decir que "aún no
+   * vence" —no tiene vencimiento—, así que va a la ruta de cobro señalada,
+   * para que alguien le asigne una desde el diálogo de fecha de cobro.
+   */
+  sin_fecha_pago: boolean
+}
+
+/**
+ * Cobranza devuelve dos listas, no una.
+ *
+ * `deCobro` es la ruta de cobro del periodo: lo vencido y lo que vence dentro
+ * del rango. `noVencen` es lo que se adeuda pero todavía no toca cobrar.
+ *
+ * Están separadas a propósito y no distinguidas por una bandera dentro de un
+ * mismo arreglo: quien consume esto tiene que elegir cuál quiere. Mezclarlas
+ * haría que el PDF incluyera a quien no toca cobrar y que el total del periodo
+ * sumara saldo ajeno al periodo.
+ */
+export type CobranzaPorPeriodo = {
+  deCobro: CreditoCobranza[]
+  noVencen: CreditoCobranza[]
 }
 
 export type RangoTipo = "semana" | "quincena" | "mes" | "personalizado"
@@ -108,7 +131,7 @@ export function formatPeriodo(periodo: Periodo): string {
 export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
   const supabase = createClient()
 
-  return useQuery<CreditoCobranza[]>({
+  return useQuery<CobranzaPorPeriodo>({
     queryKey: ["cobranza_v2", fechaInicio, fechaFin],
     queryFn: async () => {
       // 1. Fetch active lineas_credito with pending balance
@@ -119,7 +142,7 @@ export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
         .order("fecha_siguiente_pago", { ascending: true, nullsFirst: false })
       if (lineasError) throw lineasError
 
-      if (!lineas || lineas.length === 0) return []
+      if (!lineas || lineas.length === 0) return { deCobro: [], noVencen: [] }
 
       const lineaIds = lineas.map((l) => l.id)
 
@@ -153,20 +176,25 @@ export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
       const rangoInicio = parseISO(fechaInicio)
       const rangoFin = parseISO(fechaFin)
 
-      return lineas
-        .map((l) => {
+      // Clasificar, no descartar. Antes había tres `return null` seguidos y
+      // cualquiera de los dos últimos borraba la línea de la pantalla sin dejar
+      // rastro: ni fila, ni suma en el total, ni aviso. Un cliente con saldo
+      // podía no aparecer en NINGÚN periodo.
+      //
+      // La única exclusión que sobrevive es la de saldo cero, que es la
+      // correcta: un crédito liquidado no se cobra.
+      const clasificadas = lineas
+        .map((l): { credito: CreditoCobranza; venceEnPeriodo: boolean } | null => {
           const saldoPendiente = l.saldo_total - l.saldo_pagado
           if (saldoPendiente <= 0) return null
 
-          // Check if fecha_siguiente_pago falls within range
-          if (!l.fecha_siguiente_pago) return null
-          try {
-            const fsp = parseISO(l.fecha_siguiente_pago)
-            // Include if fecha_siguiente_pago <= rangoFin (includes past due)
-            if (fsp > rangoFin) return null
-          } catch {
-            return null
-          }
+          const sinFechaPago = !l.fecha_siguiente_pago
+          const venceEnPeriodo =
+            clasificarCreditoEnPeriodo({
+              saldoPendiente,
+              fechaSiguientePago: l.fecha_siguiente_pago,
+              finPeriodo: fechaFin,
+            }) === "cobro"
 
           // Calculate cuota
           const factor = l.periodicidad === "semanal" ? 4 : l.periodicidad === "quincenal" ? 2 : 1
@@ -203,7 +231,7 @@ export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
 
           const seg = segMap.get(l.id)
 
-          return {
+          const credito = {
             id: l.id,
             cliente_id: l.cliente_id,
             saldo_total: l.saldo_total,
@@ -236,14 +264,25 @@ export function useCreditosCobranzaV2(fechaInicio: string, fechaFin: string) {
             ultimo_pago_monto: ultimoPago?.monto ?? null,
             cuota_programada: cuota,
             estado_periodo: estadoPeriodo,
+            sin_fecha_pago: sinFechaPago,
           } as CreditoCobranza
+
+          return { credito, venceEnPeriodo }
         })
-        .filter((c): c is CreditoCobranza => c !== null)
-        .sort((a, b) => {
-          const fa = a.fecha_siguiente_pago ?? "9999"
-          const fb = b.fecha_siguiente_pago ?? "9999"
-          return fa.localeCompare(fb)
-        })
+        .filter((c): c is { credito: CreditoCobranza; venceEnPeriodo: boolean } => c !== null)
+
+      const porFecha = (a: CreditoCobranza, b: CreditoCobranza) => {
+        // Las que no tienen fecha van primero en la ruta de cobro: son las que
+        // hay que configurar.
+        const fa = a.fecha_siguiente_pago ?? "0000"
+        const fb = b.fecha_siguiente_pago ?? "0000"
+        return fa.localeCompare(fb)
+      }
+
+      return {
+        deCobro: clasificadas.filter((c) => c.venceEnPeriodo).map((c) => c.credito).sort(porFecha),
+        noVencen: clasificadas.filter((c) => !c.venceEnPeriodo).map((c) => c.credito).sort(porFecha),
+      }
     },
     enabled: !!fechaInicio && !!fechaFin,
   })
